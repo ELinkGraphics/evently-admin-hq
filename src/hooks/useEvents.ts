@@ -82,6 +82,41 @@ export const useEvents = () => {
     },
   });
 
+  // Publish event mutation
+  const publishEventMutation = useMutation({
+    mutationFn: async (eventId: string) => {
+      const publicLink = `${window.location.origin}/event/${eventId}`;
+      const { data, error } = await supabase
+        .from('events')
+        .update({ 
+          is_published: true, 
+          status: 'Active',
+          public_link: publicLink 
+        })
+        .eq('id', eventId)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data as Event;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      toast({
+        title: "Success",
+        description: "Event published successfully!",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to publish event. Please try again.",
+        variant: "destructive",
+      });
+      console.error('Error publishing event:', error);
+    },
+  });
+
   // Delete event mutation
   const deleteEventMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -138,9 +173,11 @@ export const useEvents = () => {
     error,
     createEvent: createEventMutation.mutate,
     updateEvent: updateEventMutation.mutate,
+    publishEvent: publishEventMutation.mutate,
     deleteEvent: deleteEventMutation.mutate,
     isCreating: createEventMutation.isPending,
     isUpdating: updateEventMutation.isPending,
+    isPublishing: publishEventMutation.isPending,
     isDeleting: deleteEventMutation.isPending,
   };
 };

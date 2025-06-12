@@ -27,6 +27,7 @@ export const EventFormDialog = ({ event, onSubmit, isLoading }: EventFormDialogP
     capacity: event?.capacity || 0,
     category: event?.category || '',
     banner_image: event?.banner_image || '',
+    price: event?.price || 0,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -49,6 +50,7 @@ export const EventFormDialog = ({ event, onSubmit, isLoading }: EventFormDialogP
         capacity: 0,
         category: '',
         banner_image: '',
+        price: 0,
       });
     }
   };
@@ -176,6 +178,20 @@ export const EventFormDialog = ({ event, onSubmit, isLoading }: EventFormDialogP
             </div>
 
             <div>
+              <Label htmlFor="price">Price ($) *</Label>
+              <Input
+                id="price"
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.price}
+                onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                placeholder="0.00"
+                required
+              />
+            </div>
+
+            <div className="md:col-span-2">
               <Label htmlFor="banner_image">Banner Image URL</Label>
               <Input
                 id="banner_image"

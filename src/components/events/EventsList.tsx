@@ -2,8 +2,9 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, Users, CreditCard, Trash2 } from "lucide-react";
+import { Calendar, Users, CreditCard, Trash2, DollarSign } from "lucide-react";
 import { EventFormDialog } from "./EventFormDialog";
+import { EventDetailsDialog } from "./EventDetailsDialog";
 import { useEvents } from "@/hooks/useEvents";
 import { Event } from "@/types/event";
 
@@ -82,13 +83,16 @@ export const EventsList = () => {
                     {event.status}
                   </Badge>
                   <Badge variant="outline">{event.category}</Badge>
+                  {event.is_published && (
+                    <Badge className="bg-blue-100 text-blue-800">Published</Badge>
+                  )}
                 </div>
                 
                 {event.description && (
                   <p className="text-muted-foreground mb-4">{event.description}</p>
                 )}
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
                   <div className="flex items-center space-x-2">
                     <Calendar className="w-4 h-4 text-blue-600" />
                     <div>
@@ -105,6 +109,14 @@ export const EventsList = () => {
                     <div>
                       <p className="font-medium text-foreground">{event.attendees}/{event.capacity} attendees</p>
                       <p className="text-muted-foreground">{event.location}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <DollarSign className="w-4 h-4 text-orange-600" />
+                    <div>
+                      <p className="font-medium text-foreground">{formatCurrency(event.price)}</p>
+                      <p className="text-muted-foreground">Ticket Price</p>
                     </div>
                   </div>
                   
@@ -134,9 +146,7 @@ export const EventsList = () => {
                   <Trash2 className="w-4 h-4 mr-2" />
                   Delete
                 </Button>
-                <Button size="sm" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                  View Details
-                </Button>
+                <EventDetailsDialog event={event} />
               </div>
             </div>
           </CardContent>

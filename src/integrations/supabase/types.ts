@@ -19,8 +19,11 @@ export type Database = {
           date: string
           description: string | null
           id: string
+          is_published: boolean | null
           location: string
           name: string
+          price: number | null
+          public_link: string | null
           revenue: number | null
           status: string | null
           time_end: string | null
@@ -36,8 +39,11 @@ export type Database = {
           date: string
           description?: string | null
           id?: string
+          is_published?: boolean | null
           location: string
           name: string
+          price?: number | null
+          public_link?: string | null
           revenue?: number | null
           status?: string | null
           time_end?: string | null
@@ -53,8 +59,11 @@ export type Database = {
           date?: string
           description?: string | null
           id?: string
+          is_published?: boolean | null
           location?: string
           name?: string
+          price?: number | null
+          public_link?: string | null
           revenue?: number | null
           status?: string | null
           time_end?: string | null
@@ -62,6 +71,53 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      ticket_purchases: {
+        Row: {
+          amount_paid: number
+          buyer_email: string
+          buyer_name: string
+          buyer_phone: string | null
+          created_at: string
+          event_id: string
+          id: string
+          purchase_date: string
+          tickets_quantity: number
+          updated_at: string
+        }
+        Insert: {
+          amount_paid: number
+          buyer_email: string
+          buyer_name: string
+          buyer_phone?: string | null
+          created_at?: string
+          event_id: string
+          id?: string
+          purchase_date?: string
+          tickets_quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          amount_paid?: number
+          buyer_email?: string
+          buyer_name?: string
+          buyer_phone?: string | null
+          created_at?: string
+          event_id?: string
+          id?: string
+          purchase_date?: string
+          tickets_quantity?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_purchases_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
