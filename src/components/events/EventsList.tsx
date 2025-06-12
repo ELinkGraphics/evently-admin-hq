@@ -2,54 +2,73 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, Users, CreditCard, Edit } from "lucide-react";
+import { Calendar, Users, CreditCard, Trash2 } from "lucide-react";
+import { EventFormDialog } from "./EventFormDialog";
+import { useEvents } from "@/hooks/useEvents";
+import { Event } from "@/types/event";
 
-const events = [
-  {
-    id: 1,
-    name: "Tech Conference 2025",
-    description: "Annual technology conference featuring industry leaders and innovative solutions.",
-    date: "June 15, 2025",
-    time: "9:00 AM - 6:00 PM",
-    location: "Convention Center",
-    attendees: 245,
-    capacity: 300,
-    revenue: "$12,250",
-    status: "Active",
-    category: "Conference",
-  },
-  {
-    id: 2,
-    name: "Music Festival",
-    description: "Three-day music festival with top artists from around the world.",
-    date: "June 22-24, 2025",
-    time: "All Day",
-    location: "Central Park",
-    attendees: 1200,
-    capacity: 1500,
-    revenue: "$45,000",
-    status: "Active",
-    category: "Music",
-  },
-  {
-    id: 3,
-    name: "Art Workshop",
-    description: "Interactive art workshop for beginners and intermediate artists.",
-    date: "June 30, 2025",
-    time: "2:00 PM - 5:00 PM",
-    location: "Art Studio Downtown",
-    attendees: 45,
-    capacity: 50,
-    revenue: "$3,375",
-    status: "Draft",
-    category: "Workshop",
-  },
-];
+const formatDate = (date: string) => {
+  return new Date(date).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+};
+
+const formatTime = (time: string) => {
+  return new Date(`2000-01-01T${time}`).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+};
+
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(amount);
+};
 
 export const EventsList = () => {
+  const { events, isLoading, updateEvent, deleteEvent, isUpdating, isDeleting } = useEvents();
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        {[1, 2, 3].map((i) => (
+          <Card key={i} className="bg-white/60 backdrop-blur-sm border-border animate-pulse">
+            <CardContent className="p-6">
+              <div className="h-6 bg-gray-200 rounded mb-4"></div>
+              <div className="h-4 bg-gray-200 rounded mb-4"></div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="h-4 bg-gray-200 rounded"></div>
+                <div className="h-4 bg-gray-200 rounded"></div>
+                <div className="h-4 bg-gray-200 rounded"></div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (events.length === 0) {
+    return (
+      <Card className="bg-white/60 backdrop-blur-sm border-border">
+        <CardContent className="p-12 text-center">
+          <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold text-foreground mb-2">No events yet</h3>
+          <p className="text-muted-foreground mb-6">Get started by creating your first event</p>
+          <EventFormDialog onSubmit={updateEvent} isLoading={isUpdating} />
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      {events.map((event) => (
+      {events.map((event: Event) => (
         <Card key={event.id} className="bg-white/60 backdrop-blur-sm border-border hover:shadow-lg transition-all duration-300">
           <CardContent className="p-6">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -65,14 +84,19 @@ export const EventsList = () => {
                   <Badge variant="outline">{event.category}</Badge>
                 </div>
                 
-                <p className="text-muted-foreground mb-4">{event.description}</p>
+                {event.description && (
+                  <p className="text-muted-foreground mb-4">{event.description}</p>
+                )}
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div className="flex items-center space-x-2">
                     <Calendar className="w-4 h-4 text-blue-600" />
                     <div>
-                      <p className="font-medium text-foreground">{event.date}</p>
-                      <p className="text-muted-foreground">{event.time}</p>
+                      <p className="font-medium text-foreground">{formatDate(event.date)}</p>
+                      <p className="text-muted-foreground">
+                        {formatTime(event.time_start)}
+                        {event.time_end && ` - ${formatTime(event.time_end)}`}
+                      </p>
                     </div>
                   </div>
                   
@@ -87,7 +111,7 @@ export const EventsList = () => {
                   <div className="flex items-center space-x-2">
                     <CreditCard className="w-4 h-4 text-green-600" />
                     <div>
-                      <p className="font-medium text-foreground">{event.revenue}</p>
+                      <p className="font-medium text-foreground">{formatCurrency(event.revenue)}</p>
                       <p className="text-muted-foreground">Total Revenue</p>
                     </div>
                   </div>
@@ -95,9 +119,20 @@ export const EventsList = () => {
               </div>
               
               <div className="flex items-center space-x-3">
-                <Button variant="outline" size="sm" className="bg-white/50 hover:bg-white/80">
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit
+                <EventFormDialog 
+                  event={event} 
+                  onSubmit={updateEvent} 
+                  isLoading={isUpdating}
+                />
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="bg-white/50 hover:bg-white/80"
+                  onClick={() => deleteEvent(event.id)}
+                  disabled={isDeleting}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
                 </Button>
                 <Button size="sm" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
                   View Details

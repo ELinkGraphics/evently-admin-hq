@@ -1,14 +1,15 @@
 
 import { Button } from "@/components/ui/button";
-import { Calendar, Users, CreditCard, BarChart3 } from "lucide-react";
+import { Calendar, Users, BarChart3 } from "lucide-react";
+import { EventFormDialog } from "@/components/events/EventFormDialog";
+import { useEvents } from "@/hooks/useEvents";
 
 export const QuickActions = () => {
+  const { createEvent, isCreating } = useEvents();
+
   return (
     <div className="flex space-x-3">
-      <Button variant="outline" size="sm" className="bg-white/50 hover:bg-white/80">
-        <Calendar className="w-4 h-4 mr-2" />
-        New Event
-      </Button>
+      <EventFormDialog onSubmit={createEvent} isLoading={isCreating} />
       <Button variant="outline" size="sm" className="bg-white/50 hover:bg-white/80">
         <Users className="w-4 h-4 mr-2" />
         View Orders

@@ -4,9 +4,12 @@ import { Sidebar } from "@/components/navigation/Sidebar";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { EventsList } from "@/components/events/EventsList";
 import { EventFilters } from "@/components/events/EventFilters";
+import { EventFormDialog } from "@/components/events/EventFormDialog";
+import { useEvents } from "@/hooks/useEvents";
 
 const Events = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { createEvent, isCreating } = useEvents();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex w-full">
@@ -21,6 +24,7 @@ const Events = () => {
               <h1 className="text-3xl font-bold text-foreground">Events</h1>
               <p className="text-muted-foreground mt-1">Manage all your events in one place.</p>
             </div>
+            <EventFormDialog onSubmit={createEvent} isLoading={isCreating} />
           </div>
 
           <EventFilters />
