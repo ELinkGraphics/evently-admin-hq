@@ -109,24 +109,33 @@ export const useEvents = () => {
     },
   });
 
-  // Set up real-time subscription
+  // Set up real-time subscription with proper cleanup
   useEffect(() => {
-    const channel = supabase
-      .channel('events-changes')
-      .on('postgres_changes', 
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'events' 
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['events'] });
-        }
-      )
-      .subscribe();
+    let channel: any = null;
+
+    const setupChannel = () => {
+      channel = supabase
+        .channel('events-changes')
+        .on('postgres_changes', 
+          { 
+            event: '*', 
+            schema: 'public', 
+            table: 'events' 
+          },
+          () => {
+            queryClient.invalidateQueries({ queryKey: ['events'] });
+          }
+        );
+
+      channel.subscribe();
+    };
+
+    setupChannel();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [queryClient]);
 
