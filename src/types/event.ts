@@ -1,4 +1,3 @@
-
 export interface Event {
   id: string;
   name: string;
@@ -16,6 +15,7 @@ export interface Event {
   price: number;
   is_published: boolean;
   public_link: string | null;
+  tickets_sold: number;
   created_at: string;
   updated_at: string;
 }

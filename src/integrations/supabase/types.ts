@@ -26,6 +26,7 @@ export type Database = {
           public_link: string | null
           revenue: number | null
           status: string | null
+          tickets_sold: number | null
           time_end: string | null
           time_start: string
           updated_at: string
@@ -46,6 +47,7 @@ export type Database = {
           public_link?: string | null
           revenue?: number | null
           status?: string | null
+          tickets_sold?: number | null
           time_end?: string | null
           time_start: string
           updated_at?: string
@@ -66,6 +68,7 @@ export type Database = {
           public_link?: string | null
           revenue?: number | null
           status?: string | null
+          tickets_sold?: number | null
           time_end?: string | null
           time_start?: string
           updated_at?: string

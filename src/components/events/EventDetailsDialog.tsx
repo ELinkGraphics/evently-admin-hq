@@ -3,9 +3,11 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Eye, Globe, Copy } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Eye, Globe, Copy, Users } from 'lucide-react';
 import { Event } from '@/types/event';
 import { EventTicketPreview } from './EventTicketPreview';
+import { TicketPurchasesList } from './TicketPurchasesList';
 import { useEvents } from '@/hooks/useEvents';
 import { useToast } from '@/hooks/use-toast';
 
@@ -40,7 +42,7 @@ export const EventDetailsDialog = ({ event }: EventDetailsDialogProps) => {
           View Details
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             {event.name}
@@ -50,15 +52,45 @@ export const EventDetailsDialog = ({ event }: EventDetailsDialogProps) => {
           </DialogTitle>
         </DialogHeader>
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Ticket Preview */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4">Ticket Preview</h3>
-            <EventTicketPreview event={event} />
-          </div>
-
-          {/* Event Management */}
-          <div className="space-y-6">
+        <Tabs defaultValue="preview" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="preview">Ticket Preview</TabsTrigger>
+            <TabsTrigger value="management">Management</TabsTrigger>
+            <TabsTrigger value="purchases">Purchases</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="preview" className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Ticket Preview</h3>
+                <EventTicketPreview event={event} />
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Event Statistics</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground">Tickets Sold</p>
+                    <p className="text-2xl font-semibold">{event.tickets_sold || 0}/{event.capacity}</p>
+                  </div>
+                  <div className="p-4 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground">Revenue</p>
+                    <p className="text-2xl font-semibold">${event.revenue || 0}</p>
+                  </div>
+                  <div className="p-4 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground">Available</p>
+                    <p className="text-2xl font-semibold">{event.capacity - (event.tickets_sold || 0)}</p>
+                  </div>
+                  <div className="p-4 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground">Price</p>
+                    <p className="text-2xl font-semibold">${event.price}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="management" className="space-y-6">
             <div>
               <h3 className="text-lg font-semibold mb-4">Event Management</h3>
               
@@ -108,21 +140,6 @@ export const EventDetailsDialog = ({ event }: EventDetailsDialogProps) => {
               )}
             </div>
 
-            {/* Event Stats */}
-            <div>
-              <h4 className="font-semibold mb-3">Event Statistics</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 bg-muted rounded-lg">
-                  <p className="text-sm text-muted-foreground">Attendees</p>
-                  <p className="text-lg font-semibold">{event.attendees}/{event.capacity}</p>
-                </div>
-                <div className="p-3 bg-muted rounded-lg">
-                  <p className="text-sm text-muted-foreground">Revenue</p>
-                  <p className="text-lg font-semibold">${event.revenue}</p>
-                </div>
-              </div>
-            </div>
-
             {/* Event Details */}
             <div>
               <h4 className="font-semibold mb-3">Event Information</h4>
@@ -147,8 +164,18 @@ export const EventDetailsDialog = ({ event }: EventDetailsDialogProps) => {
                 )}
               </div>
             </div>
-          </div>
-        </div>
+          </TabsContent>
+          
+          <TabsContent value="purchases">
+            <div>
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                Ticket Purchases
+              </h3>
+              <TicketPurchasesList eventId={event.id} />
+            </div>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
