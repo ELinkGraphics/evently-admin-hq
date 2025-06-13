@@ -32,7 +32,7 @@ interface AttendeeRecord {
     name: string;
     date: string;
     location: string;
-  };
+  } | null;
 }
 
 export const AttendeesList = ({ searchTerm, statusFilter, eventFilter }: AttendeesListProps) => {
@@ -64,8 +64,8 @@ export const AttendeesList = ({ searchTerm, statusFilter, eventFilter }: Attende
       
       if (error) throw error;
 
-      // Filter by search term and status on the client side
-      let filteredData = (data || []) as AttendeeRecord[];
+      // Cast to our interface type
+      let filteredData = data as AttendeeRecord[];
 
       if (searchTerm) {
         filteredData = filteredData.filter(attendee =>
@@ -147,6 +147,8 @@ export const AttendeesList = ({ searchTerm, statusFilter, eventFilter }: Attende
 
   // Export attendees
   const exportAttendees = () => {
+    if (attendees.length === 0) return;
+    
     const csvData = attendees.map(attendee => ({
       Name: attendee.buyer_name,
       Email: attendee.buyer_email,

@@ -6,21 +6,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-interface StatsData {
-  totalAttendees: number;
-  checkedIn: number;
-  todayCheckIns: number;
-  weekAttendees: number;
-  checkInRate: string;
-}
-
 export const AttendeesStats = () => {
   const queryClient = useQueryClient();
 
   // Fetch attendee statistics
-  const { data: stats } = useQuery<StatsData>({
+  const { data: stats } = useQuery({
     queryKey: ['attendee_stats'],
-    queryFn: async (): Promise<StatsData> => {
+    queryFn: async () => {
       // Get total attendees
       const { data: totalAttendees, error: totalError } = await supabase
         .from('ticket_purchases')
