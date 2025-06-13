@@ -6,13 +6,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
+interface StatsData {
+  totalAttendees: number;
+  checkedIn: number;
+  todayCheckIns: number;
+  weekAttendees: number;
+  checkInRate: string;
+}
+
 export const AttendeesStats = () => {
   const queryClient = useQueryClient();
 
   // Fetch attendee statistics
-  const { data: stats } = useQuery({
+  const { data: stats } = useQuery<StatsData>({
     queryKey: ['attendee_stats'],
-    queryFn: async () => {
+    queryFn: async (): Promise<StatsData> => {
       // Get total attendees
       const { data: totalAttendees, error: totalError } = await supabase
         .from('ticket_purchases')
@@ -51,10 +59,10 @@ export const AttendeesStats = () => {
       
       if (weekError) throw weekError;
 
-      const totalAttendeesCount = totalAttendees.reduce((sum, purchase) => sum + purchase.tickets_quantity, 0);
-      const checkedInCount = checkedInAttendees.reduce((sum, purchase) => sum + purchase.tickets_quantity, 0);
-      const todayCheckInsCount = todayCheckIns.reduce((sum, purchase) => sum + purchase.tickets_quantity, 0);
-      const weekAttendeesCount = weekAttendees.reduce((sum, purchase) => sum + purchase.tickets_quantity, 0);
+      const totalAttendeesCount = (totalAttendees || []).reduce((sum, purchase) => sum + purchase.tickets_quantity, 0);
+      const checkedInCount = (checkedInAttendees || []).reduce((sum, purchase) => sum + purchase.tickets_quantity, 0);
+      const todayCheckInsCount = (todayCheckIns || []).reduce((sum, purchase) => sum + purchase.tickets_quantity, 0);
+      const weekAttendeesCount = (weekAttendees || []).reduce((sum, purchase) => sum + purchase.tickets_quantity, 0);
 
       return {
         totalAttendees: totalAttendeesCount,

@@ -1,3 +1,4 @@
+
 export interface Event {
   id: string;
   name: string;
@@ -42,6 +43,8 @@ export interface TicketPurchase {
   purchase_date: string;
   tickets_quantity: number;
   amount_paid: number;
+  checked_in: boolean;
+  check_in_time: string | null;
   created_at: string;
   updated_at: string;
 }

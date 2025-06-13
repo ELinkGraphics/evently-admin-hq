@@ -16,7 +16,7 @@ interface AttendeesListProps {
   eventFilter: string;
 }
 
-interface AttendeeWithEvent {
+interface AttendeeRecord {
   id: string;
   buyer_name: string;
   buyer_email: string;
@@ -65,13 +65,13 @@ export const AttendeesList = ({ searchTerm, statusFilter, eventFilter }: Attende
       if (error) throw error;
 
       // Filter by search term and status on the client side
-      let filteredData = data as AttendeeWithEvent[];
+      let filteredData = (data || []) as AttendeeRecord[];
 
       if (searchTerm) {
         filteredData = filteredData.filter(attendee =>
           attendee.buyer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           attendee.buyer_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          attendee.events.name.toLowerCase().includes(searchTerm.toLowerCase())
+          (attendee.events?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
         );
       }
 
@@ -151,7 +151,7 @@ export const AttendeesList = ({ searchTerm, statusFilter, eventFilter }: Attende
       Name: attendee.buyer_name,
       Email: attendee.buyer_email,
       Phone: attendee.buyer_phone || '',
-      Event: attendee.events.name,
+      Event: attendee.events?.name || '',
       Tickets: attendee.tickets_quantity,
       Amount: attendee.amount_paid,
       'Purchase Date': new Date(attendee.purchase_date).toLocaleDateString(),
@@ -230,7 +230,7 @@ export const AttendeesList = ({ searchTerm, statusFilter, eventFilter }: Attende
                     </div>
                     <div className="flex items-center space-x-1">
                       <Activity className="w-3 h-3" />
-                      <span>{attendee.events.name}</span>
+                      <span>{attendee.events?.name || 'Unknown Event'}</span>
                     </div>
                     <div>
                       <span>{attendee.tickets_quantity} ticket{attendee.tickets_quantity > 1 ? 's' : ''}</span>
