@@ -1,16 +1,20 @@
 
-import Index from "./pages/Index";
-import Events from "./pages/Events";
+import { HomeIcon, Calendar, Users } from "lucide-react";
 
 export const navItems = [
   {
     title: "Dashboard",
     to: "/",
-    page: <Index />,
+    icon: <HomeIcon className="h-4 w-4" />,
   },
   {
-    title: "Events", 
+    title: "Events",
     to: "/events",
-    page: <Events />,
+    icon: <Calendar className="h-4 w-4" />,
+  },
+  {
+    title: "Attendees",
+    to: "/attendees",
+    icon: <Users className="h-4 w-4" />,
   },
 ];
