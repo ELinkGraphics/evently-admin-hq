@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -64,7 +63,14 @@ const PublicEvent = () => {
         .single();
 
       if (error) throw error;
-      setEvent(data);
+      
+      // Cast the status to the correct type
+      const eventData: Event = {
+        ...data,
+        status: data.status as 'Draft' | 'Active' | 'Cancelled' | 'Completed'
+      };
+      
+      setEvent(eventData);
     } catch (error) {
       console.error('Error fetching event:', error);
       toast({
