@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const CHAPA_SECRET_KEY = Deno.env.get("CHAPA_SECRET_KEY");
@@ -138,7 +137,6 @@ serve(async (req) => {
     console.log('Extracted event_id:', event_id, 'tickets_quantity:', tickets_quantity);
 
     // Look for existing ticket purchase with this tx_ref
-    console.log('Looking for existing ticket purchase...');
     const { data: existingPurchase, error: findError } = await supabase
       .from("ticket_purchases")
       .select("*")
@@ -158,11 +156,12 @@ serve(async (req) => {
 
     if (existingPurchase) {
       console.log('Found existing purchase, updating status and payment info...');
-      // Update existing purchase with complete payment information
-      const updateData = { 
+      // Update existing purchase with complete payment information AND raw_chapa_data
+      const updateData: any = { 
         payment_status,
         payment_method: paymentData.method || 'chapa',
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        raw_chapa_data: paymentData || chapaResult || null
       };
 
       // Add any missing buyer information if available from Chapa
@@ -201,7 +200,7 @@ serve(async (req) => {
     } else if (payment_status === "completed" && event_id) {
       console.log('Creating new ticket purchase for successful payment...');
       
-      // Create new ticket purchase with all available information
+      // Create new ticket purchase with all available information + raw_chapa_data
       const newPurchase = {
         event_id: event_id,
         buyer_name: `${paymentData.first_name || ''} ${paymentData.last_name || ''}`.trim() || 'Unknown Buyer',
@@ -215,7 +214,8 @@ serve(async (req) => {
         chapa_checkout_url: null, // This would be set during checkout initiation
         purchase_date: new Date().toISOString(),
         checked_in: false,
-        check_in_time: null
+        check_in_time: null,
+        raw_chapa_data: paymentData || chapaResult || null
       };
 
       console.log('Creating purchase with data:', newPurchase);

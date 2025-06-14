@@ -91,6 +91,7 @@ export type Database = {
           payment_method: string | null
           payment_status: string | null
           purchase_date: string
+          raw_chapa_data: Json | null
           tickets_quantity: number
           updated_at: string
         }
@@ -109,6 +110,7 @@ export type Database = {
           payment_method?: string | null
           payment_status?: string | null
           purchase_date?: string
+          raw_chapa_data?: Json | null
           tickets_quantity?: number
           updated_at?: string
         }
@@ -127,6 +129,7 @@ export type Database = {
           payment_method?: string | null
           payment_status?: string | null
           purchase_date?: string
+          raw_chapa_data?: Json | null
           tickets_quantity?: number
           updated_at?: string
         }
