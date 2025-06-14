@@ -63,6 +63,32 @@ const PublicEvent = () => {
   } | null>(null);
   const successSectionRef = useRef<HTMLDivElement | null>(null);
 
+  // --- SessionStorage keys ---
+  const STORAGE_KEY_PREFIX = "chapa_ticket_";
+
+  // Helper to save buyer data for a tx_ref
+  const saveBuyerSessionData = (tx_ref: string) => {
+    window.sessionStorage.setItem(
+      STORAGE_KEY_PREFIX + tx_ref,
+      JSON.stringify({
+        buyerName: formData.buyer_name,
+        buyerEmail: formData.buyer_email,
+        ticketsQuantity: formData.tickets_quantity,
+      })
+    );
+  };
+
+  // Helper to load buyer data by tx_ref
+  const loadBuyerSessionData = (tx_ref: string) => {
+    const raw = window.sessionStorage.getItem(STORAGE_KEY_PREFIX + tx_ref);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  };
+
   // Helper to extract buyer first/last names for Chapa
   const getBuyerNames = (fullName: string) => {
     const [first, ...rest] = fullName.trim().split(" ");
@@ -104,6 +130,25 @@ const PublicEvent = () => {
       // Avoid duplicate verification (e.g. after manual refresh)
       if (!window.sessionStorage.getItem("chapa_verified_" + tx_ref)) {
         handleChapaReturn(tx_ref);
+      } else {
+        // Already verified, rehydrate successful message and ticket data
+        const sessionBuyer = loadBuyerSessionData(tx_ref);
+        if (sessionBuyer) {
+          setSuccessfulTxRef(tx_ref);
+          setTicketDownloadData({
+            buyerName: sessionBuyer.buyerName,
+            buyerEmail: sessionBuyer.buyerEmail,
+            ticketsQuantity: sessionBuyer.ticketsQuantity,
+            txRef: tx_ref,
+          });
+          // Scroll to the success/download section on reload
+          setTimeout(() => {
+            successSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+          }, 200);
+        } else {
+          setSuccessfulTxRef(null);
+          setTicketDownloadData(null);
+        }
       }
     }
   }, []);
@@ -169,15 +214,16 @@ const PublicEvent = () => {
           description: "Thank you! Your payment was successful. Download your ticket below.",
           variant: "default",
         });
+        // Try to restore buyer/ticket data from session
+        const sessionBuyer = loadBuyerSessionData(tx_ref);
         setSuccessfulTxRef(tx_ref);
         setTicketDownloadData({
-          buyerName: formData.buyer_name,
-          buyerEmail: formData.buyer_email,
-          ticketsQuantity: formData.tickets_quantity,
+          buyerName: sessionBuyer?.buyerName || formData.buyer_name,
+          buyerEmail: sessionBuyer?.buyerEmail || formData.buyer_email,
+          ticketsQuantity: sessionBuyer?.ticketsQuantity || formData.tickets_quantity,
           txRef: tx_ref,
         });
         fetchEvent();
-
         // Scroll to the success/download section after ticket data is set
         setTimeout(() => {
           successSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -225,14 +271,15 @@ const PublicEvent = () => {
         throw new Error("Payment is currently unavailable, please try again later.");
       }
 
-      // Generate tx_ref and fill out hidden Chapa form
+      // Generate tx_ref and save formData for after redirect
       const tx_ref = generateTxRef();
-      const { first, last } = getBuyerNames(formData.buyer_name);
+      saveBuyerSessionData(tx_ref);
 
-      // Since we're not inserting a pending ticket into Supabase here,
-      // handle ticket record after Chapa confirmation (ideally via webhook or verify return).
+      // (Rebuild Chapa form values)
+      // const { first, last } = getBuyerNames(formData.buyer_name);
 
-      // Fill and submit the Chapa HTML checkout form automatically
+      // Optional: update Chapa form with current tx_ref and values if needed (omitted for brevity, see buildChapaFormValues)
+      // Trigger form submit to Chapa
       setTimeout(() => {
         chapaFormRef.current?.submit();
       }, 100);
