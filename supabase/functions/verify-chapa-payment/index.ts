@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const CHAPA_SECRET_KEY = Deno.env.get("CHAPA_SECRET_KEY");
@@ -12,14 +13,12 @@ const corsHeaders = {
 const CHAPA_VERIFY_URL = 'https://api.chapa.co/v1/transaction/verify/';
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     console.log('Starting payment verification...');
-    
     const { tx_ref } = await req.json();
     console.log('Verifying payment for tx_ref:', tx_ref);
 
@@ -50,7 +49,6 @@ serve(async (req) => {
     });
 
     console.log('Chapa API response status:', verifyResponse.status);
-    
     if (!verifyResponse.ok) {
       const errorText = await verifyResponse.text();
       console.error('Chapa API error:', errorText);
@@ -67,9 +65,8 @@ serve(async (req) => {
     }
 
     const chapaResult = await verifyResponse.json();
-    console.log('Chapa verification result:', JSON.stringify(chapaResult, null, 2));
+    console.log('Full Chapa result:', JSON.stringify(chapaResult, null, 2));
 
-    // Check if verification was successful according to Chapa docs
     if (chapaResult.status !== 'success') {
       console.log('Chapa API returned non-success status:', chapaResult.status);
       return new Response(
@@ -108,7 +105,7 @@ serve(async (req) => {
     if (paymentData && paymentData.status) {
       const chapaStatus = paymentData.status.toLowerCase();
       console.log('Chapa payment status:', chapaStatus);
-      
+
       if (chapaStatus === "success") {
         payment_status = "completed";
       } else if (chapaStatus === "failed") {
@@ -119,14 +116,10 @@ serve(async (req) => {
     // Extract event_id and other metadata from tx_ref or meta
     let event_id = null;
     let tickets_quantity = 1;
-    
-    // Try to extract from meta first
     if (paymentData.meta) {
       event_id = paymentData.meta.event_id;
       tickets_quantity = parseInt(paymentData.meta.tickets_quantity) || 1;
     }
-    
-    // If no meta, try to extract from tx_ref pattern
     if (!event_id && tx_ref.startsWith('tx_')) {
       const parts = tx_ref.split('_');
       if (parts.length >= 2) {
@@ -154,9 +147,12 @@ serve(async (req) => {
       );
     }
 
+    // If purchase exists, update it, else, create new if completed
+    let dbResult = null;
+    let dbError = null;
+
     if (existingPurchase) {
       console.log('Found existing purchase, updating status and payment info...');
-      // Update existing purchase with complete payment information AND raw_chapa_data
       const updateData: any = { 
         payment_status,
         payment_method: paymentData.method || 'chapa',
@@ -164,18 +160,16 @@ serve(async (req) => {
         raw_chapa_data: paymentData || chapaResult || null
       };
 
-      // Add any missing buyer information if available from Chapa
+      // Add buyer info if available from Chapa
       if (paymentData.first_name || paymentData.last_name) {
         const fullName = `${paymentData.first_name || ''} ${paymentData.last_name || ''}`.trim();
         if (fullName && (!existingPurchase.buyer_name || existingPurchase.buyer_name.trim() === '')) {
           updateData.buyer_name = fullName;
         }
       }
-
       if (paymentData.email && (!existingPurchase.buyer_email || existingPurchase.buyer_email.trim() === '')) {
         updateData.buyer_email = paymentData.email;
       }
-
       if (paymentData.phone && !existingPurchase.buyer_phone) {
         updateData.buyer_phone = paymentData.phone;
       }
@@ -186,6 +180,7 @@ serve(async (req) => {
         .eq("id", existingPurchase.id);
 
       if (updateError) {
+        dbError = updateError;
         console.error('Error updating ticket purchase:', updateError);
         return new Response(
           JSON.stringify({ error: "Database error while updating purchase" }),
@@ -195,12 +190,10 @@ serve(async (req) => {
           }
         );
       }
-
       console.log('Existing purchase updated successfully');
+      dbResult = updateData;
     } else if (payment_status === "completed" && event_id) {
-      console.log('Creating new ticket purchase for successful payment...');
-      
-      // Create new ticket purchase with all available information + raw_chapa_data
+      // Create new ticket purchase with all available info
       const newPurchase = {
         event_id: event_id,
         buyer_name: `${paymentData.first_name || ''} ${paymentData.last_name || ''}`.trim() || 'Unknown Buyer',
@@ -211,13 +204,12 @@ serve(async (req) => {
         payment_status: "completed",
         payment_method: paymentData.method || 'chapa',
         chapa_transaction_id: tx_ref,
-        chapa_checkout_url: null, // This would be set during checkout initiation
+        chapa_checkout_url: null,
         purchase_date: new Date().toISOString(),
         checked_in: false,
         check_in_time: null,
         raw_chapa_data: paymentData || chapaResult || null
       };
-
       console.log('Creating purchase with data:', newPurchase);
 
       const { data: insertData, error: insertError } = await supabase
@@ -227,6 +219,7 @@ serve(async (req) => {
         .single();
 
       if (insertError) {
+        dbError = insertError;
         console.error('Error creating ticket purchase:', insertError);
         return new Response(
           JSON.stringify({ error: "Database error while creating purchase", details: insertError.message }),
@@ -236,13 +229,27 @@ serve(async (req) => {
           }
         );
       }
-
+      dbResult = insertData;
       console.log('Ticket purchase created successfully:', insertData);
     } else {
-      console.log('Payment not completed or missing event_id. Status:', payment_status, 'Event ID:', event_id);
+      let message = '';
+      if (payment_status !== "completed") {
+        message = `Payment not completed (status: ${payment_status}).`;
+      } else if (!event_id) {
+        message = 'event_id not found in payment data or tx_ref.';
+      }
+      console.error('Purchase not created:', message);
+      return new Response(
+        JSON.stringify({ 
+          error: "Ticket purchase not saved.",
+          details: message,
+          chapa_data: paymentData
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // Return verification result with all information
+    // Return verification result with all info
     const result = {
       payment_status,
       chapa_status: paymentData?.status || 'unknown',
@@ -258,7 +265,9 @@ serve(async (req) => {
       },
       event_id: event_id,
       tickets_quantity: tickets_quantity,
-      raw_chapa_data: paymentData
+      raw_chapa_data: paymentData,
+      db: dbResult,
+      dbError
     };
 
     console.log('Returning verification result:', result);
