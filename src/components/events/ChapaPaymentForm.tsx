@@ -1,5 +1,5 @@
 
-import { useRef, useEffect } from 'react';
+import { useEffect } from 'react';
 
 interface ChapaFormValues {
   public_key: string;
@@ -23,6 +23,7 @@ interface ChapaPaymentFormProps {
   chapaFormValues: ChapaFormValues | null;
   soldOut: boolean;
   successfulTxRef: string | null;
+  formRef: React.RefObject<HTMLFormElement>;
   onSubmit: () => void;
 }
 
@@ -32,16 +33,9 @@ export const ChapaPaymentForm = ({
   chapaFormValues, 
   soldOut, 
   successfulTxRef, 
+  formRef,
   onSubmit 
 }: ChapaPaymentFormProps) => {
-  const chapaFormRef = useRef<HTMLFormElement | null>(null);
-
-  // Expose the form ref to parent component via window object
-  useEffect(() => {
-    if (chapaFormRef.current) {
-      (window as any).chapaFormRef = chapaFormRef;
-    }
-  }, [chapaFormRef.current]);
 
   if (soldOut || successfulTxRef || !chapaFormValues) {
     return null;
@@ -51,7 +45,7 @@ export const ChapaPaymentForm = ({
 
   return (
     <form
-      ref={chapaFormRef}
+      ref={formRef}
       action={CHAPA_CHECKOUT_URL}
       method="POST"
       className="hidden"

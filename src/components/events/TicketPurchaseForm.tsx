@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,6 +62,7 @@ export const TicketPurchaseForm = ({
   });
 
   const [currentTxRef, setCurrentTxRef] = useState<string>('');
+  const chapaFormRef = useRef<HTMLFormElement | null>(null);
 
   const generateTxRef = () => {
     return `tx_${event.id}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -108,16 +109,15 @@ export const TicketPurchaseForm = ({
     // Call parent's purchase handler
     onPurchase({ ...formData, tx_ref } as any);
 
-    // Submit Chapa form after a short delay
+    // Submit Chapa form after a short delay to ensure form is rendered
     setTimeout(() => {
-      const chapaForm = (window as any).chapaFormRef?.current;
-      if (chapaForm) {
+      if (chapaFormRef.current) {
         console.log('Submitting Chapa form with tx_ref:', tx_ref);
-        chapaForm.submit();
+        chapaFormRef.current.submit();
       } else {
         console.error('Chapa form reference not found');
       }
-    }, 200);
+    }, 300);
   };
 
   const chapaFormValues = currentTxRef ? buildChapaFormValues(currentTxRef) : null;
@@ -232,6 +232,7 @@ export const TicketPurchaseForm = ({
           chapaFormValues={chapaFormValues}
           soldOut={soldOut}
           successfulTxRef={successfulTxRef}
+          formRef={chapaFormRef}
           onSubmit={() => console.log('Chapa form submitted')}
         />
       </CardContent>
