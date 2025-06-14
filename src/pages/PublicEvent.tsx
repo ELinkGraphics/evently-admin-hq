@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,6 +36,8 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+const CHAPA_HTML_CHECKOUT_URL = "https://api.chapa.co/v1/hosted/pay";
+
 const PublicEvent = () => {
   const { eventId } = useParams();
   const { toast } = useToast();
@@ -48,6 +50,7 @@ const PublicEvent = () => {
     buyer_phone: '',
     tickets_quantity: 1,
   });
+  const chapaFormRef = useRef<HTMLFormElement | null>(null);
 
   // Helper to extract buyer first/last names for Chapa
   const getBuyerNames = (fullName: string) => {
@@ -134,6 +137,11 @@ const PublicEvent = () => {
     }
   };
 
+  const generateTxRef = () => {
+    // Strongly unique tx_ref per event/purchase
+    return `event_${eventId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  };
+
   const handlePurchase = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!event) return;
@@ -147,26 +155,17 @@ const PublicEvent = () => {
         throw new Error(`Only ${availableTickets} tickets available`);
       }
 
-      // Chapa only accepts ETB. Could extend later for other currencies.
-      // Send payment creation request via API/Edge function
+      // Generate tx_ref and fill out hidden Chapa form
+      const tx_ref = generateTxRef();
       const { first, last } = getBuyerNames(formData.buyer_name);
 
-      // Build a return_url for after payment (optional: could be /success or /event/:id)
-      const return_url = window.location.href;
-      const res = await createChapaPaymentSession({
-        event_id: event.id,
-        amount: totalAmount,
-        email: formData.buyer_email,
-        first_name: first,
-        last_name: last,
-        phone_number: formData.buyer_phone || "",
-        return_url,
-      });
+      // Since we're not inserting a pending ticket into Supabase here,
+      // handle ticket record after Chapa confirmation (ideally via webhook or verify return).
 
-      // Store pending transaction in the ticket_purchases table (optional for backend, but record on success)
-      // Redirect to Chapa checkout URL:
-      window.location.href = res.chapa_checkout_url;
-      // After checkout, user will be redirected back to return_url
+      // Fill and submit the Chapa HTML checkout form automatically
+      setTimeout(() => {
+        chapaFormRef.current?.submit();
+      }, 100);
     } catch (error: any) {
       console.error("Error starting payment:", error);
       toast({
@@ -174,7 +173,6 @@ const PublicEvent = () => {
         description: error.message || "Failed to start payment. Please try again.",
         variant: "destructive",
       });
-    } finally {
       setPurchasing(false);
     }
   };
@@ -206,6 +204,23 @@ const PublicEvent = () => {
 
   const availableTickets = event.capacity - (event.tickets_sold || 0);
   const soldOut = availableTickets <= 0;
+
+  // --- Chapa form fields ---
+  const { first: buyer_first_name, last: buyer_last_name } = getBuyerNames(formData.buyer_name);
+  const tx_ref = `event_${eventId}_${Date.now()}`; // Use for input value in the form
+  const chapaFormValues = {
+    public_key: "CHAPUBK_TEST-hasndm61XhAXOAHh1hzn1W5Kujp5Nzdi", // replace with your public key in production!
+    amount: (event?.price * formData.tickets_quantity).toString(),
+    currency: "ETB",
+    email: formData.buyer_email,
+    first_name: buyer_first_name,
+    last_name: buyer_last_name,
+    phone_number: formData.buyer_phone,
+    tx_ref: tx_ref,
+    return_url: window.location.href,
+    customization_title: "Event Ticket Purchase",
+    customization_description: "Purchase for event " + (event?.id || ""),
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 py-8 px-4">
@@ -349,6 +364,32 @@ const PublicEvent = () => {
                     By purchasing tickets, you agree to our terms and conditions. 
                     You will receive a confirmation email with your ticket details.
                   </p>
+                </form>
+              )}
+
+              {/* Hidden Chapa HTML form for submission */}
+              {!soldOut && (
+                <form
+                  ref={chapaFormRef}
+                  action={CHAPA_HTML_CHECKOUT_URL}
+                  method="POST"
+                  className="hidden"
+                >
+                  <input type="hidden" name="public_key" value={chapaFormValues.public_key} />
+                  <input type="hidden" name="amount" value={chapaFormValues.amount} />
+                  <input type="hidden" name="currency" value={chapaFormValues.currency} />
+                  <input type="hidden" name="email" value={chapaFormValues.email} />
+                  <input type="hidden" name="first_name" value={chapaFormValues.first_name} />
+                  <input type="hidden" name="last_name" value={chapaFormValues.last_name} />
+                  <input type="hidden" name="phone_number" value={chapaFormValues.phone_number} />
+                  <input type="hidden" name="tx_ref" value={chapaFormValues.tx_ref} />
+                  <input type="hidden" name="return_url" value={chapaFormValues.return_url} />
+                  <input type="hidden" name="title" value={chapaFormValues.customization_title} />
+                  <input
+                    type="hidden"
+                    name="description"
+                    value={chapaFormValues.customization_description}
+                  />
                 </form>
               )}
             </CardContent>
