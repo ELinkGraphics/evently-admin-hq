@@ -121,10 +121,21 @@ serve(async (req) => {
     let event_id = null;
     let tickets_quantity = 1;
     
+    // Try to extract from meta first
     if (paymentData.meta) {
       event_id = paymentData.meta.event_id;
       tickets_quantity = parseInt(paymentData.meta.tickets_quantity) || 1;
     }
+    
+    // If no meta, try to extract from tx_ref pattern
+    if (!event_id && tx_ref.startsWith('tx_')) {
+      const parts = tx_ref.split('_');
+      if (parts.length >= 2) {
+        event_id = parts[1]; // tx_<event_id>_<timestamp>_<random>
+      }
+    }
+
+    console.log('Extracted event_id:', event_id, 'tickets_quantity:', tickets_quantity);
 
     // Look for existing ticket purchase with this tx_ref
     console.log('Looking for existing ticket purchase...');
@@ -146,14 +157,33 @@ serve(async (req) => {
     }
 
     if (existingPurchase) {
-      console.log('Found existing purchase, updating status...');
-      // Update existing purchase
+      console.log('Found existing purchase, updating status and payment info...');
+      // Update existing purchase with complete payment information
+      const updateData = { 
+        payment_status,
+        payment_method: paymentData.method || 'chapa',
+        updated_at: new Date().toISOString()
+      };
+
+      // Add any missing buyer information if available from Chapa
+      if (paymentData.first_name || paymentData.last_name) {
+        const fullName = `${paymentData.first_name || ''} ${paymentData.last_name || ''}`.trim();
+        if (fullName && (!existingPurchase.buyer_name || existingPurchase.buyer_name.trim() === '')) {
+          updateData.buyer_name = fullName;
+        }
+      }
+
+      if (paymentData.email && (!existingPurchase.buyer_email || existingPurchase.buyer_email.trim() === '')) {
+        updateData.buyer_email = paymentData.email;
+      }
+
+      if (paymentData.phone && !existingPurchase.buyer_phone) {
+        updateData.buyer_phone = paymentData.phone;
+      }
+
       const { error: updateError } = await supabase
         .from("ticket_purchases")
-        .update({ 
-          payment_status,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq("id", existingPurchase.id);
 
       if (updateError) {
@@ -166,31 +196,40 @@ serve(async (req) => {
           }
         );
       }
+
+      console.log('Existing purchase updated successfully');
     } else if (payment_status === "completed" && event_id) {
       console.log('Creating new ticket purchase for successful payment...');
       
-      // Create new ticket purchase for successful payment
+      // Create new ticket purchase with all available information
       const newPurchase = {
         event_id: event_id,
-        buyer_name: `${paymentData.first_name || ''} ${paymentData.last_name || ''}`.trim(),
+        buyer_name: `${paymentData.first_name || ''} ${paymentData.last_name || ''}`.trim() || 'Unknown Buyer',
         buyer_email: paymentData.email || '',
         buyer_phone: paymentData.phone || null,
         tickets_quantity: tickets_quantity,
         amount_paid: parseFloat(paymentData.amount) || 0,
         payment_status: "completed",
+        payment_method: paymentData.method || 'chapa',
         chapa_transaction_id: tx_ref,
+        chapa_checkout_url: null, // This would be set during checkout initiation
         purchase_date: new Date().toISOString(),
-        checked_in: false
+        checked_in: false,
+        check_in_time: null
       };
 
-      const { error: insertError } = await supabase
+      console.log('Creating purchase with data:', newPurchase);
+
+      const { data: insertData, error: insertError } = await supabase
         .from("ticket_purchases")
-        .insert([newPurchase]);
+        .insert([newPurchase])
+        .select()
+        .single();
 
       if (insertError) {
         console.error('Error creating ticket purchase:', insertError);
         return new Response(
-          JSON.stringify({ error: "Database error while creating purchase" }),
+          JSON.stringify({ error: "Database error while creating purchase", details: insertError.message }),
           { 
             status: 500, 
             headers: { ...corsHeaders, "Content-Type": "application/json" } 
@@ -198,15 +237,18 @@ serve(async (req) => {
         );
       }
 
-      console.log('Ticket purchase created successfully');
+      console.log('Ticket purchase created successfully:', insertData);
+    } else {
+      console.log('Payment not completed or missing event_id. Status:', payment_status, 'Event ID:', event_id);
     }
 
-    // Return verification result
+    // Return verification result with all information
     const result = {
       payment_status,
       chapa_status: paymentData?.status || 'unknown',
       amount: paymentData?.amount || 0,
       currency: paymentData?.currency || 'ETB',
+      method: paymentData?.method || 'chapa',
       tx_ref: tx_ref,
       verified_at: new Date().toISOString(),
       buyer_info: {
