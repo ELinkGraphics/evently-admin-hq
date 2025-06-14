@@ -11,6 +11,8 @@ import { Event, TicketPurchase } from '@/types/event';
 import { useToast } from '@/hooks/use-toast';
 import { createChapaPaymentSession } from "@/api/chapa";
 import { verifyChapaPayment } from "@/api/verifyChapaPayment";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import { TicketPDF } from "@/components/events/TicketPDF";
 
 const formatDate = (date: string) => {
   return new Date(date).toLocaleDateString('en-US', {
@@ -52,6 +54,13 @@ const PublicEvent = () => {
   });
   const chapaFormRef = useRef<HTMLFormElement | null>(null);
   const [chapaPublicKey, setChapaPublicKey] = useState<string | null>(null);
+  const [successfulTxRef, setSuccessfulTxRef] = useState<string | null>(null);
+  const [ticketDownloadData, setTicketDownloadData] = useState<{
+    buyerName: string;
+    buyerEmail: string;
+    ticketsQuantity: number;
+    txRef: string;
+  } | null>(null);
 
   // Helper to extract buyer first/last names for Chapa
   const getBuyerNames = (fullName: string) => {
@@ -130,16 +139,25 @@ const PublicEvent = () => {
     try {
       const verification = await verifyChapaPayment(tx_ref);
       window.sessionStorage.setItem("chapa_verified_" + tx_ref, "true");
-      // Show toast and reload event data for updated ticket status
+
       if (verification.payment_status === "completed") {
         toast({
           title: "Payment Successful",
-          description: "Thank you! Your payment was successful. Check your email for ticket details.",
+          description: "Thank you! Your payment was successful. Download your ticket below.",
           variant: "default",
         });
-        // Optionally refetch/poll event stats
+        // Save info for PDF download link
+        setSuccessfulTxRef(tx_ref);
+        setTicketDownloadData({
+          buyerName: formData.buyer_name,
+          buyerEmail: formData.buyer_email,
+          ticketsQuantity: formData.tickets_quantity,
+          txRef: tx_ref,
+        });
         fetchEvent();
       } else {
+        setSuccessfulTxRef(null);
+        setTicketDownloadData(null);
         toast({
           title: "Payment Failed or Pending",
           description: "Payment verification returned: " + (verification.chapa_status || "Unknown"),
@@ -147,6 +165,8 @@ const PublicEvent = () => {
         });
       }
     } catch (error: any) {
+      setSuccessfulTxRef(null);
+      setTicketDownloadData(null);
       toast({
         title: "Verification Error",
         description: error.message,
@@ -311,6 +331,42 @@ const PublicEvent = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              {successfulTxRef && ticketDownloadData && (
+                <div className="mb-4">
+                  <div className="rounded-lg bg-green-50 border border-green-300 p-4 text-green-900 mb-2 text-center">
+                    <strong>Payment successful!</strong> <br />
+                    Click the button below to download your ticket.
+                  </div>
+                  <PDFDownloadLink
+                    document={
+                      event && (
+                        <TicketPDF
+                          event={event}
+                          buyerName={ticketDownloadData.buyerName}
+                          buyerEmail={ticketDownloadData.buyerEmail}
+                          ticketsQuantity={ticketDownloadData.ticketsQuantity}
+                          txRef={ticketDownloadData.txRef}
+                        />
+                      )
+                    }
+                    fileName={`${event.name}_ticket.pdf`}
+                    className="w-full block"
+                  >
+                    {({ blob, url, loading, error }) =>
+                      loading ? (
+                        <Button type="button" className="w-full" disabled>
+                          Generating Ticket PDF...
+                        </Button>
+                      ) : (
+                        <Button type="button" className="w-full">
+                          Download Ticket PDF
+                        </Button>
+                      )
+                    }
+                  </PDFDownloadLink>
+                </div>
+              )}
+              
               {soldOut ? (
                 <div className="text-center py-8">
                   <p className="text-lg font-semibold text-destructive mb-2">Sold Out</p>
@@ -393,7 +449,7 @@ const PublicEvent = () => {
               )}
 
               {/* Hidden Chapa HTML form for submission */}
-              {!soldOut && (
+              {!soldOut && !successfulTxRef && (
                 <form
                   ref={chapaFormRef}
                   action={CHAPA_HTML_CHECKOUT_URL}
