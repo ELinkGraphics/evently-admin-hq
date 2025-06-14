@@ -51,6 +51,7 @@ const PublicEvent = () => {
     tickets_quantity: 1,
   });
   const chapaFormRef = useRef<HTMLFormElement | null>(null);
+  const [chapaPublicKey, setChapaPublicKey] = useState<string | null>(null);
 
   // Helper to extract buyer first/last names for Chapa
   const getBuyerNames = (fullName: string) => {
@@ -73,6 +74,25 @@ const PublicEvent = () => {
         handleChapaReturn(tx_ref);
       }
     }
+  }, []);
+
+  useEffect(() => {
+    async function fetchKey() {
+      try {
+        const res = await fetch(
+          "https://oqxtwyvkcyzqusjurpcs.supabase.co/functions/v1/get-chapa-public-key"
+        );
+        const data = await res.json();
+        if (data.public_key) {
+          setChapaPublicKey(data.public_key);
+        } else {
+          setChapaPublicKey(null);
+        }
+      } catch (err) {
+        setChapaPublicKey(null);
+      }
+    }
+    fetchKey();
   }, []);
 
   const fetchEvent = async () => {
@@ -154,6 +174,9 @@ const PublicEvent = () => {
       if (formData.tickets_quantity > availableTickets) {
         throw new Error(`Only ${availableTickets} tickets available`);
       }
+      if (!chapaPublicKey) {
+        throw new Error("Payment is currently unavailable, please try again later.");
+      }
 
       // Generate tx_ref and fill out hidden Chapa form
       const tx_ref = generateTxRef();
@@ -208,8 +231,10 @@ const PublicEvent = () => {
   // --- Chapa form fields ---
   const { first: buyer_first_name, last: buyer_last_name } = getBuyerNames(formData.buyer_name);
   const tx_ref = `event_${eventId}_${Date.now()}`; // Use for input value in the form
+
+  // Use chapaPublicKey instead of hardcoded key
   const chapaFormValues = {
-    public_key: "CHAPUBK_TEST-hasndm61XhAXOAHh1hzn1W5Kujp5Nzdi", // replace with your public key in production!
+    public_key: chapaPublicKey || "", // Dynamically fetched
     amount: (event?.price * formData.tickets_quantity).toString(),
     currency: "ETB",
     email: formData.buyer_email,
