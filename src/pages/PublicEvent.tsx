@@ -31,23 +31,29 @@ const PublicEvent = () => {
 
   // Helper to save buyer data for a tx_ref
   const saveBuyerSessionData = (tx_ref: string, formData: PurchaseFormData) => {
-    window.sessionStorage.setItem(
-      STORAGE_KEY_PREFIX + tx_ref,
-      JSON.stringify({
-        buyerName: formData.buyer_name,
-        buyerEmail: formData.buyer_email,
-        ticketsQuantity: formData.tickets_quantity,
-      })
-    );
+    try {
+      window.sessionStorage.setItem(
+        STORAGE_KEY_PREFIX + tx_ref,
+        JSON.stringify({
+          buyerName: formData.buyer_name,
+          buyerEmail: formData.buyer_email,
+          ticketsQuantity: formData.tickets_quantity,
+        })
+      );
+      console.log('Buyer data saved to session:', tx_ref);
+    } catch (err) {
+      console.error('Error saving buyer session data:', err);
+    }
   };
 
   // Helper to load buyer data by tx_ref
   const loadBuyerSessionData = (tx_ref: string) => {
-    const raw = window.sessionStorage.getItem(STORAGE_KEY_PREFIX + tx_ref);
-    if (!raw) return null;
     try {
+      const raw = window.sessionStorage.getItem(STORAGE_KEY_PREFIX + tx_ref);
+      if (!raw) return null;
       return JSON.parse(raw);
-    } catch {
+    } catch (err) {
+      console.error('Error loading buyer session data:', err);
       return null;
     }
   };
@@ -61,10 +67,16 @@ const PublicEvent = () => {
   useEffect(() => {
     const url = new URL(window.location.href);
     const tx_ref = url.searchParams.get("tx_ref");
+    const status = url.searchParams.get("status");
+    
+    console.log('URL params:', { tx_ref, status });
+    
     if (tx_ref) {
       if (!window.sessionStorage.getItem("chapa_verified_" + tx_ref)) {
+        console.log('Handling Chapa return for tx_ref:', tx_ref);
         handleChapaReturn(tx_ref);
       } else {
+        console.log('Payment already verified, loading session data');
         const sessionBuyer = loadBuyerSessionData(tx_ref);
         if (sessionBuyer) {
           setSuccessfulTxRef(tx_ref);
@@ -74,10 +86,18 @@ const PublicEvent = () => {
             ticketsQuantity: sessionBuyer.ticketsQuantity,
             txRef: tx_ref,
           });
+          // Scroll to success section after data is set
           setTimeout(() => {
-            successSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-          }, 200);
+            if (successSectionRef.current) {
+              successSectionRef.current.scrollIntoView({ 
+                behavior: "smooth", 
+                block: "center" 
+              });
+              console.log('Scrolled to success section');
+            }
+          }, 500);
         } else {
+          console.log('No session data found for tx_ref:', tx_ref);
           setSuccessfulTxRef(null);
           setTicketDownloadData(null);
         }
@@ -88,16 +108,20 @@ const PublicEvent = () => {
   useEffect(() => {
     async function fetchKey() {
       try {
+        console.log('Fetching Chapa public key...');
         const res = await fetch(
           "https://oqxtwyvkcyzqusjurpcs.supabase.co/functions/v1/get-chapa-public-key"
         );
         const data = await res.json();
+        console.log('Chapa key response:', data);
         if (data.public_key) {
           setChapaPublicKey(data.public_key);
         } else {
           setChapaPublicKey(null);
+          console.error('No public key in response');
         }
       } catch (err) {
+        console.error('Error fetching Chapa key:', err);
         setChapaPublicKey(null);
       }
     }
@@ -106,6 +130,7 @@ const PublicEvent = () => {
 
   const fetchEvent = async () => {
     try {
+      console.log('Fetching event:', eventId);
       const { data, error } = await supabase
         .from('events')
         .select('*')
@@ -113,13 +138,21 @@ const PublicEvent = () => {
         .eq('is_published', true)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Event fetch error:', error);
+        throw error;
+      }
       
       const eventData: Event = {
         ...data,
-        status: data.status as 'Draft' | 'Active' | 'Cancelled' | 'Completed'
+        status: data.status as 'Draft' | 'Active' | 'Cancelled' | 'Completed',
+        tickets_sold: data.tickets_sold || 0,
+        revenue: data.revenue || 0,
+        attendees: data.attendees || 0,
+        price: data.price || 0,
       };
       
+      console.log('Event loaded:', eventData);
       setEvent(eventData);
     } catch (error) {
       console.error('Error fetching event:', error);
@@ -134,30 +167,51 @@ const PublicEvent = () => {
   };
 
   const handleChapaReturn = async (tx_ref: string) => {
+    console.log('Starting Chapa verification for:', tx_ref);
     setPurchasing(true);
+    
     try {
       const verification = await verifyChapaPayment(tx_ref);
+      console.log('Verification result:', verification);
+      
       window.sessionStorage.setItem("chapa_verified_" + tx_ref, "true");
 
       if (verification.payment_status === "completed") {
+        console.log('Payment completed successfully');
         toast({
           title: "Payment Successful",
           description: "Thank you! Your payment was successful. Download your ticket below.",
           variant: "default",
         });
+        
         const sessionBuyer = loadBuyerSessionData(tx_ref);
-        setSuccessfulTxRef(tx_ref);
-        setTicketDownloadData({
-          buyerName: sessionBuyer?.buyerName || '',
-          buyerEmail: sessionBuyer?.buyerEmail || '',
-          ticketsQuantity: sessionBuyer?.ticketsQuantity || 1,
-          txRef: tx_ref,
-        });
-        fetchEvent();
-        setTimeout(() => {
-          successSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-        }, 500);
+        if (sessionBuyer) {
+          setSuccessfulTxRef(tx_ref);
+          setTicketDownloadData({
+            buyerName: sessionBuyer.buyerName,
+            buyerEmail: sessionBuyer.buyerEmail,
+            ticketsQuantity: sessionBuyer.ticketsQuantity,
+            txRef: tx_ref,
+          });
+          
+          // Refresh event data to get updated ticket count
+          await fetchEvent();
+          
+          // Scroll to success section after state updates
+          setTimeout(() => {
+            if (successSectionRef.current) {
+              successSectionRef.current.scrollIntoView({ 
+                behavior: "smooth", 
+                block: "center" 
+              });
+              console.log('Scrolled to success section after verification');
+            }
+          }, 500);
+        } else {
+          console.error('No session buyer data found');
+        }
       } else {
+        console.log('Payment not completed:', verification.payment_status);
         setSuccessfulTxRef(null);
         setTicketDownloadData(null);
         toast({
@@ -167,11 +221,12 @@ const PublicEvent = () => {
         });
       }
     } catch (error: any) {
+      console.error('Verification error:', error);
       setSuccessfulTxRef(null);
       setTicketDownloadData(null);
       toast({
         title: "Verification Error",
-        description: error.message,
+        description: error.message || "Payment verification failed",
         variant: "destructive",
       });
     } finally {
@@ -180,20 +235,30 @@ const PublicEvent = () => {
   };
 
   const handlePurchase = async (formData: PurchaseFormData & { tx_ref: string }) => {
-    if (!event) return;
+    if (!event) {
+      console.error('No event data available');
+      return;
+    }
+    
+    console.log('Starting purchase process:', formData);
     setPurchasing(true);
 
     try {
       const availableTickets = event.capacity - (event.tickets_sold || 0);
+      console.log('Available tickets:', availableTickets);
 
       if (formData.tickets_quantity > availableTickets) {
         throw new Error(`Only ${availableTickets} tickets available`);
       }
+      
       if (!chapaPublicKey) {
         throw new Error("Payment is currently unavailable, please try again later.");
       }
 
+      // Save buyer data to session before redirecting to Chapa
       saveBuyerSessionData(formData.tx_ref, formData);
+      console.log('Purchase process completed, redirecting to Chapa...');
+      
     } catch (error: any) {
       console.error("Error starting payment:", error);
       toast({
@@ -243,16 +308,18 @@ const PublicEvent = () => {
             soldOut={soldOut}
           />
 
-          <TicketPurchaseForm
-            event={event}
-            availableTickets={availableTickets}
-            soldOut={soldOut}
-            purchasing={purchasing}
-            successfulTxRef={successfulTxRef}
-            ticketDownloadData={ticketDownloadData}
-            chapaPublicKey={chapaPublicKey}
-            onPurchase={handlePurchase}
-          />
+          <div ref={successSectionRef}>
+            <TicketPurchaseForm
+              event={event}
+              availableTickets={availableTickets}
+              soldOut={soldOut}
+              purchasing={purchasing}
+              successfulTxRef={successfulTxRef}
+              ticketDownloadData={ticketDownloadData}
+              chapaPublicKey={chapaPublicKey}
+              onPurchase={handlePurchase}
+            />
+          </div>
         </div>
       </div>
     </div>
