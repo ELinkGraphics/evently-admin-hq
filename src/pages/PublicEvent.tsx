@@ -9,6 +9,7 @@ import { Calendar, MapPin, Clock, Users, DollarSign, Ticket } from 'lucide-react
 import { supabase } from '@/integrations/supabase/client';
 import { Event, TicketPurchase } from '@/types/event';
 import { useToast } from '@/hooks/use-toast';
+import { createChapaPaymentSession } from "@/api/chapa";
 
 const formatDate = (date: string) => {
   return new Date(date).toLocaleDateString('en-US', {
@@ -46,6 +47,12 @@ const PublicEvent = () => {
     buyer_phone: '',
     tickets_quantity: 1,
   });
+
+  // Helper to extract buyer first/last names for Chapa
+  const getBuyerNames = (fullName: string) => {
+    const [first, ...rest] = fullName.trim().split(" ");
+    return { first, last: rest.join(" ") || first };
+  };
 
   useEffect(() => {
     if (eventId) {
@@ -86,50 +93,41 @@ const PublicEvent = () => {
   const handlePurchase = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!event) return;
-
     setPurchasing(true);
+
     try {
       const totalAmount = event.price * formData.tickets_quantity;
-      
-      // Check if there are enough tickets available
       const availableTickets = event.capacity - (event.tickets_sold || 0);
+
       if (formData.tickets_quantity > availableTickets) {
         throw new Error(`Only ${availableTickets} tickets available`);
       }
 
-      const { error } = await supabase
-        .from('ticket_purchases')
-        .insert([{
-          event_id: event.id,
-          buyer_name: formData.buyer_name,
-          buyer_email: formData.buyer_email,
-          buyer_phone: formData.buyer_phone || null,
-          tickets_quantity: formData.tickets_quantity,
-          amount_paid: totalAmount,
-        }]);
+      // Chapa only accepts ETB. Could extend later for other currencies.
+      // Send payment creation request via API/Edge function
+      const { first, last } = getBuyerNames(formData.buyer_name);
 
-      if (error) throw error;
-
-      toast({
-        title: "Success!",
-        description: `Tickets purchased successfully! You will receive a confirmation email at ${formData.buyer_email}`,
+      // Build a return_url for after payment (optional: could be /success or /event/:id)
+      const return_url = window.location.href;
+      const res = await createChapaPaymentSession({
+        event_id: event.id,
+        amount: totalAmount,
+        email: formData.buyer_email,
+        first_name: first,
+        last_name: last,
+        phone_number: formData.buyer_phone || "",
+        return_url,
       });
 
-      // Reset form
-      setFormData({
-        buyer_name: '',
-        buyer_email: '',
-        buyer_phone: '',
-        tickets_quantity: 1,
-      });
-
-      // Refresh event data to show updated ticket count
-      fetchEvent();
+      // Store pending transaction in the ticket_purchases table (optional for backend, but record on success)
+      // Redirect to Chapa checkout URL:
+      window.location.href = res.chapa_checkout_url;
+      // After checkout, user will be redirected back to return_url
     } catch (error: any) {
-      console.error('Error purchasing tickets:', error);
+      console.error("Error starting payment:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to purchase tickets. Please try again.",
+        description: error.message || "Failed to start payment. Please try again.",
         variant: "destructive",
       });
     } finally {
