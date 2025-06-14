@@ -51,4 +51,5 @@ export interface TicketPurchase {
   check_in_time: string | null;
   created_at: string;
   updated_at: string;
+  raw_chapa_data?: any | null;
 }

@@ -1,13 +1,10 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-// Chapa optionally sends an X-Chapa-Signature header for security;
-// if you want, you can fetch the secret signature from Deno.env and implement verification.
-
-// Minimal CORS headers for Chapa webhook.
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, X-Chapa-Signature",
@@ -20,191 +17,117 @@ serve(async (req) => {
 
   try {
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      return new Response(JSON.stringify({ error: "Server misconfiguration. Try again soon." }), {
+      console.error("Server misconfiguration: Supabase environment variables are missing.");
+      return new Response(JSON.stringify({ error: "Server misconfiguration" }), {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const body = await req.json();
-    console.log("Webhook received:", JSON.stringify(body, null, 2));
+    console.log("Chapa webhook received:", JSON.stringify(body, null, 2));
 
-    // Chapa payload reference: https://developer.chapa.co/docs/webhooks/
-    const paymentData = body;
-    const tx_ref = paymentData?.tx_ref || paymentData?.data?.tx_ref;
-    const event_id =
-      paymentData?.meta?.event_id ||
-      paymentData?.["meta[event_id]"] ||
-      paymentData?.data?.meta?.event_id ||
-      paymentData?.data?.["meta[event_id]"] ||
-      (tx_ref && tx_ref.startsWith('tx_') ? tx_ref.split('_')[1] : null);
-    const tickets_quantity =
-      parseInt(
-        paymentData?.meta?.tickets_quantity ||
-          paymentData?.["meta[tickets_quantity]"] ||
-          paymentData?.data?.meta?.tickets_quantity ||
-          paymentData?.data?.["meta[tickets_quantity]"] ||
-          "1"
-      ) || 1;
+    const paymentData = body.data || body;
 
-    let buyer_first_name =
-      paymentData?.first_name ||
-      paymentData?.data?.first_name ||
-      "";
-    let buyer_last_name =
-      paymentData?.last_name ||
-      paymentData?.data?.last_name ||
-      "";
+    const tx_ref = paymentData?.tx_ref;
+    if (!tx_ref) {
+        console.error("Webhook ignored: Missing tx_ref.");
+        return new Response(JSON.stringify({ error: "Missing tx_ref" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+    }
 
-    let buyer_name = `${buyer_first_name} ${buyer_last_name}`.trim();
-    let buyer_email =
-      paymentData?.email ||
-      paymentData?.data?.email ||
-      "";
-    let buyer_phone =
-      paymentData?.phone ||
-      paymentData?.data?.phone ||
-      null;
+    const payment_status = (paymentData?.status || "").toLowerCase();
+    const amount = parseFloat(paymentData?.amount || "0");
+    const meta = paymentData?.meta || {};
+    const event_id = meta.event_id || (tx_ref && tx_ref.startsWith('tx_') ? tx_ref.split('_')[1] : null);
+    
+    console.log(`Processing webhook for tx_ref: ${tx_ref}`);
 
-    let amount =
-      parseFloat(paymentData?.amount || paymentData?.data?.amount || "0");
-    let currency =
-      paymentData?.currency ||
-      paymentData?.data?.currency ||
-      "ETB";
-    let payment_method =
-      paymentData?.method ||
-      paymentData?.data?.method ||
-      "chapa";
+    if (!event_id) {
+        console.error(`Webhook ignored: Could not determine event_id for tx_ref: ${tx_ref}`);
+        return new Response(JSON.stringify({ error: "Missing event_id" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+    }
 
-    let payment_status =
-      (paymentData?.status || paymentData?.data?.status || "").toLowerCase();
-
-    // Map Chapa status to app status
     let db_status = "pending";
     if (payment_status === "success") {
       db_status = "completed";
-    } else if (payment_status === "failed") {
+    } else if (payment_status === "failed" || payment_status === "cancelled") {
       db_status = "failed";
     }
 
-    console.log("tx_ref:", tx_ref, "event_id:", event_id, "qty:", tickets_quantity, "email:", buyer_email);
-
-    // Connect to Supabase
-    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Look for an existing purchase by chapa_transaction_id (tx_ref)
-    const { data: existing, error: findError } = await supabase
+    const { data: existingPurchase, error: findError } = await supabase
       .from("ticket_purchases")
-      .select("*")
+      .select("id, payment_status")
       .eq("chapa_transaction_id", tx_ref)
       .maybeSingle();
 
     if (findError) {
-      console.error("Error finding existing purchase:", findError);
-      return new Response(
-        JSON.stringify({ error: "Error checking for duplicate purchase.", details: findError.message }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      console.error(`DB error finding purchase for ${tx_ref}:`, findError.message);
+      return new Response(JSON.stringify({ error: "Database query failed." }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    let dbResult = null;
-    if (existing) {
-      // Update with new data
-      const updateData: any = {
+    if (existingPurchase) {
+      if (existingPurchase.payment_status === 'completed' && db_status === 'completed') {
+        console.log(`Purchase ${tx_ref} already completed. Ignoring webhook.`);
+        return new Response(JSON.stringify({ ok: true, message: "Already processed" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const updatePayload: any = {
         payment_status: db_status,
-        payment_method,
+        raw_chapa_data: body,
         updated_at: new Date().toISOString(),
-        buyer_name: buyer_name.length ? buyer_name : existing.buyer_name,
-        buyer_email: buyer_email || existing.buyer_email,
-        buyer_phone: buyer_phone || existing.buyer_phone,
-        tickets_quantity: tickets_quantity || existing.tickets_quantity,
-        amount_paid: amount || existing.amount_paid,
-        chapa_transaction_id: tx_ref,
-        chapa_checkout_url: null,
-        raw_chapa_data: paymentData,
       };
+      
+      if (amount > 0) {
+        updatePayload.amount_paid = amount;
+      }
+      
       const { error: updateError } = await supabase
         .from("ticket_purchases")
-        .update(updateData)
-        .eq("id", existing.id);
+        .update(updatePayload)
+        .eq("id", existingPurchase.id);
+
       if (updateError) {
-        console.error("Error updating purchase:", updateError);
-        return new Response(JSON.stringify({ error: "Failed to update purchase.", details: updateError.message }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
+        console.error(`Error updating purchase ${tx_ref}:`, updateError.message);
+        return new Response(JSON.stringify({ error: "Failed to update purchase" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      dbResult = updateData;
-      console.log("Updated existing purchase:", existing.id);
-    } else if (db_status === "completed" && event_id) {
-      // Insert new
-      const newPurchase: any = {
-        event_id,
-        buyer_name: buyer_name || "Unknown",
-        buyer_email,
-        buyer_phone,
-        tickets_quantity,
-        amount_paid: amount,
-        payment_status: db_status,
-        payment_method,
-        chapa_transaction_id: tx_ref,
-        chapa_checkout_url: null,
-        purchase_date: new Date().toISOString(),
-        checked_in: false,
-        check_in_time: null,
-        raw_chapa_data: paymentData,
-      };
-      const { data: insertData, error: insertError } = await supabase
-        .from("ticket_purchases")
-        .insert([newPurchase])
-        .select()
-        .single();
-      if (insertError) {
-        console.error("Error inserting purchase:", insertError);
-        return new Response(JSON.stringify({ error: "Failed to create purchase.", details: insertError.message }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
-      }
-      dbResult = insertData;
-      console.log("Inserted new purchase:", insertData?.id);
+      console.log(`Updated purchase ${tx_ref} to status: ${db_status}.`);
     } else {
-      let message = [];
-      if (db_status !== "completed") message.push(`Payment not completed (status: ${db_status})`);
-      if (!event_id) message.push("event_id missing");
-      console.error("Purchase not saved:", message.join(", "));
-      return new Response(
-        JSON.stringify({
-          error: "Purchase not saved",
-          details: message.join(", "),
-          chapa_data: paymentData
-        }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      console.warn(`No pending purchase found for tx_ref: ${tx_ref}. This may indicate a race condition or an issue with initial purchase creation.`);
+      if (db_status === 'completed') {
+        console.log(`Creating fallback purchase for ${tx_ref} as it is successful.`);
+        const tickets_quantity = parseInt(meta.tickets_quantity || "1") || 1;
+        const newPurchase = {
+          event_id,
+          buyer_name: `${paymentData.first_name || ''} ${paymentData.last_name || ''}`.trim() || 'Unknown',
+          buyer_email: paymentData.email || 'unknown@email.com',
+          buyer_phone: paymentData.phone || null,
+          tickets_quantity,
+          amount_paid: amount,
+          payment_status: db_status,
+          payment_method: 'chapa',
+          chapa_transaction_id: tx_ref,
+          purchase_date: new Date().toISOString(),
+          raw_chapa_data: body,
+        };
+        const { error: insertError } = await supabase.from('ticket_purchases').insert(newPurchase);
+        if (insertError) {
+          console.error(`Fallback insert failed for tx_ref ${tx_ref}:`, insertError.message);
+        } else {
+          console.log(`Successfully created fallback purchase for ${tx_ref}.`);
+        }
+      }
     }
 
-    return new Response(
-      JSON.stringify({
-        ok: true,
-        tx_ref,
-        status: db_status,
-        chapa_status: payment_status,
-        event_id,
-        tickets_quantity,
-        db: dbResult,
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      }
-    );
-  } catch (err: any) {
-    console.error("Webhook error:", err);
-    return new Response(
-      JSON.stringify({ error: err.message, detail: err.toString() }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+  } catch (err) {
+    console.error("Unhandled webhook error:", err);
+    return new Response(JSON.stringify({ error: err.message, detail: err.toString() }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
