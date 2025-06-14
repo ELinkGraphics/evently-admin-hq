@@ -81,17 +81,12 @@ export type Database = {
           buyer_email: string
           buyer_name: string
           buyer_phone: string | null
-          chapa_checkout_url: string | null
-          chapa_transaction_id: string | null
           check_in_time: string | null
           checked_in: boolean | null
           created_at: string
           event_id: string
           id: string
-          payment_method: string | null
-          payment_status: string | null
           purchase_date: string
-          raw_chapa_data: Json | null
           tickets_quantity: number
           updated_at: string
         }
@@ -100,17 +95,12 @@ export type Database = {
           buyer_email: string
           buyer_name: string
           buyer_phone?: string | null
-          chapa_checkout_url?: string | null
-          chapa_transaction_id?: string | null
           check_in_time?: string | null
           checked_in?: boolean | null
           created_at?: string
           event_id: string
           id?: string
-          payment_method?: string | null
-          payment_status?: string | null
           purchase_date?: string
-          raw_chapa_data?: Json | null
           tickets_quantity?: number
           updated_at?: string
         }
@@ -119,17 +109,12 @@ export type Database = {
           buyer_email?: string
           buyer_name?: string
           buyer_phone?: string | null
-          chapa_checkout_url?: string | null
-          chapa_transaction_id?: string | null
           check_in_time?: string | null
           checked_in?: boolean | null
           created_at?: string
           event_id?: string
           id?: string
-          payment_method?: string | null
-          payment_status?: string | null
           purchase_date?: string
-          raw_chapa_data?: Json | null
           tickets_quantity?: number
           updated_at?: string
         }

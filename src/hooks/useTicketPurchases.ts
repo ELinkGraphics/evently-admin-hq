@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { TicketPurchase } from '@/types/event';
@@ -40,6 +41,10 @@ export const useTicketPurchases = (eventId?: string) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ticket_purchases'] });
       queryClient.invalidateQueries({ queryKey: ['events'] });
+      toast({
+        title: "Success",
+        description: "Tickets purchased successfully!",
+      });
     },
     onError: (error) => {
       toast({

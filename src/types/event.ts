@@ -43,13 +43,8 @@ export interface TicketPurchase {
   purchase_date: string;
   tickets_quantity: number;
   amount_paid: number;
-  payment_status: string | null;
-  payment_method: string | null;
-  chapa_transaction_id: string | null;
-  chapa_checkout_url: string | null;
-  checked_in: boolean | null;
+  checked_in: boolean;
   check_in_time: string | null;
   created_at: string;
   updated_at: string;
-  raw_chapa_data?: any | null;
 }
