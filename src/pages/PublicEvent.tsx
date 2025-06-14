@@ -62,6 +62,7 @@ const PublicEvent = () => {
     txRef: string;
   } | null>(null);
   const successSectionRef = useRef<HTMLDivElement | null>(null);
+  const [currentTxRef, setCurrentTxRef] = useState<string>('');
 
   // --- SessionStorage keys ---
   const STORAGE_KEY_PREFIX = "chapa_ticket_";
@@ -95,10 +96,9 @@ const PublicEvent = () => {
     return { first, last: rest.join(" ") || first };
   };
 
-  // Chapa checkout form values generator
-  const buildChapaFormValues = () => {
+  // Chapa checkout form values generator - now uses the stored tx_ref
+  const buildChapaFormValues = (tx_ref: string) => {
     const { first: buyer_first_name, last: buyer_last_name } = getBuyerNames(formData.buyer_name);
-    const tx_ref = `event_${eventId}_${Date.now()}`;
 
     return {
       public_key: chapaPublicKey || "",
@@ -111,7 +111,7 @@ const PublicEvent = () => {
       title: event?.name || "Event Ticket Purchase",
       description: (event?.description || "Event") + " - Ticket Purchase",
       logo: event?.banner_image || "https://chapa.link/asset/images/chapa_swirl.svg",
-      callback_url: window.location.origin + "/api/chapa-callback", // Replace/implement as needed
+      callback_url: window.location.origin + "/api/chapa-callback",
       return_url: window.location.href,
       "meta[title]": event?.name || "",
     };
@@ -227,7 +227,7 @@ const PublicEvent = () => {
         // Scroll to the success/download section after ticket data is set
         setTimeout(() => {
           successSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-        }, 200);
+        }, 500);
       } else {
         setSuccessfulTxRef(null);
         setTicketDownloadData(null);
@@ -273,12 +273,9 @@ const PublicEvent = () => {
 
       // Generate tx_ref and save formData for after redirect
       const tx_ref = generateTxRef();
+      setCurrentTxRef(tx_ref);
       saveBuyerSessionData(tx_ref);
 
-      // (Rebuild Chapa form values)
-      // const { first, last } = getBuyerNames(formData.buyer_name);
-
-      // Optional: update Chapa form with current tx_ref and values if needed (omitted for brevity, see buildChapaFormValues)
       // Trigger form submit to Chapa
       setTimeout(() => {
         chapaFormRef.current?.submit();
@@ -322,8 +319,8 @@ const PublicEvent = () => {
   const availableTickets = event.capacity - (event.tickets_sold || 0);
   const soldOut = availableTickets <= 0;
 
-  // --- Chapa form fields ---
-  const chapaFormValues = buildChapaFormValues();
+  // --- Chapa form fields - now uses currentTxRef ---
+  const chapaFormValues = currentTxRef ? buildChapaFormValues(currentTxRef) : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 py-8 px-4">
@@ -511,7 +508,7 @@ const PublicEvent = () => {
               )}
 
               {/* --- Chapa HTML form (hidden) --- */}
-              {!soldOut && !successfulTxRef && (
+              {!soldOut && !successfulTxRef && chapaFormValues && (
                 <form
                   ref={chapaFormRef}
                   action={CHAPA_HTML_CHECKOUT_URL}
