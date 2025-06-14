@@ -40,7 +40,7 @@ serve(async (req) => {
       });
     }
 
-    // Verify payment with Chapa
+    // Verify payment with Chapa using their documentation format
     console.log('Calling Chapa verify API...');
     const verifyResponse = await fetch(CHAPA_VERIFY_URL + tx_ref, {
       method: 'GET',
@@ -70,7 +70,8 @@ serve(async (req) => {
     const chapaResult = await verifyResponse.json();
     console.log('Chapa verification result:', JSON.stringify(chapaResult, null, 2));
 
-    if (!chapaResult.status || chapaResult.status !== 'success') {
+    // Check if verification was successful according to Chapa docs
+    if (chapaResult.status !== 'success') {
       console.log('Chapa API returned non-success status:', chapaResult.status);
       return new Response(
         JSON.stringify({ 
@@ -88,7 +89,7 @@ serve(async (req) => {
     const paymentData = chapaResult.data;
     console.log('Payment data from Chapa:', paymentData);
 
-    // Connect to Supabase
+    // Connect to Supabase for ticket purchase creation
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       console.error('Supabase configuration missing');
       return new Response(
@@ -114,6 +115,15 @@ serve(async (req) => {
       } else if (chapaStatus === "failed") {
         payment_status = "failed";
       }
+    }
+
+    // Extract event_id and other metadata from tx_ref or meta
+    let event_id = null;
+    let tickets_quantity = 1;
+    
+    if (paymentData.meta) {
+      event_id = paymentData.meta.event_id;
+      tickets_quantity = parseInt(paymentData.meta.tickets_quantity) || 1;
     }
 
     // Look for existing ticket purchase with this tx_ref
@@ -156,8 +166,39 @@ serve(async (req) => {
           }
         );
       }
-    } else {
-      console.log('No existing purchase found - this might be expected for some payment flows');
+    } else if (payment_status === "completed" && event_id) {
+      console.log('Creating new ticket purchase for successful payment...');
+      
+      // Create new ticket purchase for successful payment
+      const newPurchase = {
+        event_id: event_id,
+        buyer_name: `${paymentData.first_name || ''} ${paymentData.last_name || ''}`.trim(),
+        buyer_email: paymentData.email || '',
+        buyer_phone: paymentData.phone || null,
+        tickets_quantity: tickets_quantity,
+        amount_paid: parseFloat(paymentData.amount) || 0,
+        payment_status: "completed",
+        chapa_transaction_id: tx_ref,
+        purchase_date: new Date().toISOString(),
+        checked_in: false
+      };
+
+      const { error: insertError } = await supabase
+        .from("ticket_purchases")
+        .insert([newPurchase]);
+
+      if (insertError) {
+        console.error('Error creating ticket purchase:', insertError);
+        return new Response(
+          JSON.stringify({ error: "Database error while creating purchase" }),
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+
+      console.log('Ticket purchase created successfully');
     }
 
     // Return verification result
@@ -168,6 +209,13 @@ serve(async (req) => {
       currency: paymentData?.currency || 'ETB',
       tx_ref: tx_ref,
       verified_at: new Date().toISOString(),
+      buyer_info: {
+        name: `${paymentData?.first_name || ''} ${paymentData?.last_name || ''}`.trim(),
+        email: paymentData?.email || '',
+        phone: paymentData?.phone || ''
+      },
+      event_id: event_id,
+      tickets_quantity: tickets_quantity,
       raw_chapa_data: paymentData
     };
 

@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Ticket } from 'lucide-react';
@@ -199,11 +198,24 @@ const PublicEvent = () => {
       if (verification.payment_status === "completed") {
         console.log('Payment completed successfully');
         
-        const sessionBuyer = loadBuyerSessionData(tx_ref);
-        if (sessionBuyer) {
+        // Use buyer info from verification response or session storage
+        let buyerData = null;
+        
+        if (verification.buyer_info && verification.buyer_info.name && verification.buyer_info.email) {
+          buyerData = {
+            buyerName: verification.buyer_info.name,
+            buyerEmail: verification.buyer_info.email,
+            ticketsQuantity: verification.tickets_quantity || 1,
+          };
+        } else {
+          // Fall back to session storage
+          buyerData = loadBuyerSessionData(tx_ref);
+        }
+        
+        if (buyerData) {
           setSuccessfulTxRef(tx_ref);
           setTicketDownloadData({
-            ...sessionBuyer,
+            ...buyerData,
             txRef: tx_ref,
           });
           
@@ -213,13 +225,13 @@ const PublicEvent = () => {
           toast({
             title: "Payment Successful! 🎉",
             description: "Your tickets have been purchased successfully. You can now download your ticket PDF.",
-            duration: 5000,
+            duration: 6000,
           });
         } else {
-          console.error('No buyer data found in session storage');
+          console.error('No buyer data found');
           toast({
             title: "Payment Successful",
-            description: "Payment completed but buyer information was lost. Please contact support.",
+            description: "Payment completed but buyer information was not found. Please contact support.",
             variant: "destructive",
           });
         }

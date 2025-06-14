@@ -1,7 +1,7 @@
 
 /**
- * Verify payment status with Chapa and update Supabase ticket_purchases row.
- * Returns { payment_status, chapa_status, ... }
+ * Verify payment status with Chapa using their official API
+ * Returns { payment_status, chapa_status, buyer_info, ... }
  */
 export async function verifyChapaPayment(tx_ref: string) {
   console.log('Verifying Chapa payment for tx_ref:', tx_ref);
@@ -31,7 +31,19 @@ export async function verifyChapaPayment(tx_ref: string) {
     
     const result = await response.json();
     console.log('Verification API response:', result);
-    return result;
+    
+    return {
+      payment_status: result.payment_status || 'unknown',
+      chapa_status: result.chapa_status || 'unknown',
+      amount: result.amount || 0,
+      currency: result.currency || 'ETB',
+      tx_ref: result.tx_ref || tx_ref,
+      verified_at: result.verified_at,
+      buyer_info: result.buyer_info || null,
+      event_id: result.event_id || null,
+      tickets_quantity: result.tickets_quantity || 1,
+      raw_chapa_data: result.raw_chapa_data || null
+    };
   } catch (error: any) {
     console.error('Payment verification error:', error);
     throw new Error(error.message || "Payment verification failed. Please contact support.");
