@@ -61,6 +61,7 @@ const PublicEvent = () => {
     ticketsQuantity: number;
     txRef: string;
   } | null>(null);
+  const successSectionRef = useRef<HTMLDivElement | null>(null);
 
   // Helper to extract buyer first/last names for Chapa
   const getBuyerNames = (fullName: string) => {
@@ -168,7 +169,6 @@ const PublicEvent = () => {
           description: "Thank you! Your payment was successful. Download your ticket below.",
           variant: "default",
         });
-        // Save info for PDF download link
         setSuccessfulTxRef(tx_ref);
         setTicketDownloadData({
           buyerName: formData.buyer_name,
@@ -177,6 +177,11 @@ const PublicEvent = () => {
           txRef: tx_ref,
         });
         fetchEvent();
+
+        // Scroll to the success/download section after ticket data is set
+        setTimeout(() => {
+          successSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 200);
       } else {
         setSuccessfulTxRef(null);
         setTicketDownloadData(null);
@@ -339,7 +344,7 @@ const PublicEvent = () => {
             <CardContent>
               {/* --- Success Message & PDF Ticket Download --- */}
               {successfulTxRef && ticketDownloadData && (
-                <div className="mb-4">
+                <div className="mb-4" ref={successSectionRef}>
                   <div className="rounded-lg bg-green-50 border border-green-300 p-4 text-green-900 mb-2 text-center">
                     <strong>Payment successful!</strong> <br />
                     Click the button below to download your ticket as a PDF.
