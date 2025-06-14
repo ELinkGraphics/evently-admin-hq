@@ -6,6 +6,7 @@ import Index from "./pages/Index";
 import Events from "./pages/Events";
 import PublicEvent from "./pages/PublicEvent";
 import NotFound from "./pages/NotFound";
+import Finance from "./pages/Finance";
 
 const queryClient = new QueryClient();
 
@@ -21,6 +22,7 @@ function App() {
             <Route path="/" element={<Index />} />
             <Route path="/events" element={<Events />} />
             <Route path="/attendees" element={<Attendees />} />
+            <Route path="/finance" element={<Finance />} />
             <Route path="/event/:eventId" element={<PublicEvent />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

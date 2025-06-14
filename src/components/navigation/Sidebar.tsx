@@ -1,4 +1,3 @@
-
 import { Calendar, Users, CreditCard, BarChart3, Settings, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -8,7 +7,7 @@ interface SidebarProps {
 }
 
 const navigation = [
-  { name: "Dashboard", icon: Home, href: "/", current: true },
+  { name: "Dashboard", icon: Home, href: "/", current: false },
   { name: "Events", icon: Calendar, href: "/events", current: false },
   { name: "Attendees", icon: Users, href: "/attendees", current: false },
   { name: "Finance", icon: CreditCard, href: "/finance", current: false },
@@ -16,7 +15,15 @@ const navigation = [
   { name: "Settings", icon: Settings, href: "/settings", current: false },
 ];
 
+// Get the current path to highlight the active navigation item.
+const getCurrentPath = () => {
+  if (typeof window === "undefined") return "/";
+  return window.location.pathname;
+};
+
 export const Sidebar = ({ open, setOpen }: SidebarProps) => {
+  const currentPath = getCurrentPath();
+
   return (
     <div
       className={cn(
@@ -38,7 +45,6 @@ export const Sidebar = ({ open, setOpen }: SidebarProps) => {
             )}
           </div>
         </div>
-
         {/* Navigation */}
         <nav className="flex-1 space-y-1 p-4">
           {navigation.map((item) => (
@@ -47,7 +53,7 @@ export const Sidebar = ({ open, setOpen }: SidebarProps) => {
               href={item.href}
               className={cn(
                 "group flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
-                item.current
+                currentPath === item.href
                   ? "bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 border border-blue-200"
                   : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                 !open && "justify-center"
@@ -56,7 +62,7 @@ export const Sidebar = ({ open, setOpen }: SidebarProps) => {
               <item.icon
                 className={cn(
                   "flex-shrink-0 w-5 h-5",
-                  item.current ? "text-blue-600" : "text-muted-foreground group-hover:text-accent-foreground",
+                  currentPath === item.href ? "text-blue-600" : "text-muted-foreground group-hover:text-accent-foreground",
                   open ? "mr-3" : ""
                 )}
               />
@@ -64,7 +70,6 @@ export const Sidebar = ({ open, setOpen }: SidebarProps) => {
             </a>
           ))}
         </nav>
-
         {/* User Profile */}
         <div className="border-t border-border p-4">
           <div className={cn("flex items-center", open ? "space-x-3" : "justify-center")}>
