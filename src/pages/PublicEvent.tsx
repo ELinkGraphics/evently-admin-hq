@@ -68,6 +68,28 @@ const PublicEvent = () => {
     return { first, last: rest.join(" ") || first };
   };
 
+  // Chapa checkout form values generator
+  const buildChapaFormValues = () => {
+    const { first: buyer_first_name, last: buyer_last_name } = getBuyerNames(formData.buyer_name);
+    const tx_ref = `event_${eventId}_${Date.now()}`;
+
+    return {
+      public_key: chapaPublicKey || "",
+      tx_ref,
+      amount: (event?.price * formData.tickets_quantity).toString(),
+      currency: "ETB",
+      email: formData.buyer_email,
+      first_name: buyer_first_name,
+      last_name: buyer_last_name,
+      title: event?.name || "Event Ticket Purchase",
+      description: (event?.description || "Event") + " - Ticket Purchase",
+      logo: event?.banner_image || "https://chapa.link/asset/images/chapa_swirl.svg",
+      callback_url: window.location.origin + "/api/chapa-callback", // Replace/implement as needed
+      return_url: window.location.href,
+      "meta[title]": event?.name || "",
+    };
+  };
+
   useEffect(() => {
     if (eventId) {
       fetchEvent();
@@ -249,23 +271,7 @@ const PublicEvent = () => {
   const soldOut = availableTickets <= 0;
 
   // --- Chapa form fields ---
-  const { first: buyer_first_name, last: buyer_last_name } = getBuyerNames(formData.buyer_name);
-  const tx_ref = `event_${eventId}_${Date.now()}`; // Use for input value in the form
-
-  // Use chapaPublicKey instead of hardcoded key
-  const chapaFormValues = {
-    public_key: chapaPublicKey || "", // Dynamically fetched
-    amount: (event?.price * formData.tickets_quantity).toString(),
-    currency: "ETB",
-    email: formData.buyer_email,
-    first_name: buyer_first_name,
-    last_name: buyer_last_name,
-    phone_number: formData.buyer_phone,
-    tx_ref: tx_ref,
-    return_url: window.location.href,
-    customization_title: "Event Ticket Purchase",
-    customization_description: "Purchase for event " + (event?.id || ""),
-  };
+  const chapaFormValues = buildChapaFormValues();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 py-8 px-4">
@@ -331,11 +337,12 @@ const PublicEvent = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              {/* --- Success Message & PDF Ticket Download --- */}
               {successfulTxRef && ticketDownloadData && (
                 <div className="mb-4">
                   <div className="rounded-lg bg-green-50 border border-green-300 p-4 text-green-900 mb-2 text-center">
                     <strong>Payment successful!</strong> <br />
-                    Click the button below to download your ticket.
+                    Click the button below to download your ticket as a PDF.
                   </div>
                   <PDFDownloadLink
                     document={
@@ -366,7 +373,8 @@ const PublicEvent = () => {
                   </PDFDownloadLink>
                 </div>
               )}
-              
+
+              {/* --- Sold Out Display --- */}
               {soldOut ? (
                 <div className="text-center py-8">
                   <p className="text-lg font-semibold text-destructive mb-2">Sold Out</p>
@@ -374,6 +382,7 @@ const PublicEvent = () => {
                 </div>
               ) : (
                 <form onSubmit={handlePurchase} className="space-y-4">
+                  {/* --- Buyer name/email/phone etc. --- */}
                   <div>
                     <Label htmlFor="buyer_name">Full Name *</Label>
                     <Input
@@ -421,6 +430,7 @@ const PublicEvent = () => {
                     />
                   </div>
 
+                  {/* --- Price Preview --- */}
                   <div className="bg-muted p-4 rounded-lg">
                     <div className="flex justify-between items-center mb-2">
                       <span>Tickets ({formData.tickets_quantity}x)</span>
@@ -448,7 +458,7 @@ const PublicEvent = () => {
                 </form>
               )}
 
-              {/* Hidden Chapa HTML form for submission */}
+              {/* --- Chapa HTML form (hidden) --- */}
               {!soldOut && !successfulTxRef && (
                 <form
                   ref={chapaFormRef}
@@ -457,20 +467,18 @@ const PublicEvent = () => {
                   className="hidden"
                 >
                   <input type="hidden" name="public_key" value={chapaFormValues.public_key} />
+                  <input type="hidden" name="tx_ref" value={chapaFormValues.tx_ref} />
                   <input type="hidden" name="amount" value={chapaFormValues.amount} />
                   <input type="hidden" name="currency" value={chapaFormValues.currency} />
                   <input type="hidden" name="email" value={chapaFormValues.email} />
                   <input type="hidden" name="first_name" value={chapaFormValues.first_name} />
                   <input type="hidden" name="last_name" value={chapaFormValues.last_name} />
-                  <input type="hidden" name="phone_number" value={chapaFormValues.phone_number} />
-                  <input type="hidden" name="tx_ref" value={chapaFormValues.tx_ref} />
+                  <input type="hidden" name="title" value={chapaFormValues.title} />
+                  <input type="hidden" name="description" value={chapaFormValues.description} />
+                  <input type="hidden" name="logo" value={chapaFormValues.logo} />
+                  <input type="hidden" name="callback_url" value={chapaFormValues.callback_url} />
                   <input type="hidden" name="return_url" value={chapaFormValues.return_url} />
-                  <input type="hidden" name="title" value={chapaFormValues.customization_title} />
-                  <input
-                    type="hidden"
-                    name="description"
-                    value={chapaFormValues.customization_description}
-                  />
+                  <input type="hidden" name="meta[title]" value={chapaFormValues["meta[title]"]} />
                 </form>
               )}
             </CardContent>
