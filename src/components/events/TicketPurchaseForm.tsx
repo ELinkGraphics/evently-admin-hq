@@ -33,9 +33,9 @@ export interface PurchaseFormData {
 }
 
 const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('en-ET', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'ETB',
   }).format(amount);
 };
 
@@ -64,46 +64,60 @@ export const TicketPurchaseForm = ({
   const [currentTxRef, setCurrentTxRef] = useState<string>('');
 
   const generateTxRef = () => {
-    return `event_${event.id}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    return `tx_${event.id}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   };
 
   const buildChapaFormValues = (tx_ref: string) => {
     const { first: buyer_first_name, last: buyer_last_name } = getBuyerNames(formData.buyer_name);
+    const totalAmount = event.price * formData.tickets_quantity;
 
     return {
       public_key: chapaPublicKey || "",
       tx_ref,
-      amount: (event.price * formData.tickets_quantity).toString(),
+      amount: totalAmount.toString(),
       currency: "ETB",
       email: formData.buyer_email,
       first_name: buyer_first_name,
       last_name: buyer_last_name,
-      title: event.name || "Event Ticket Purchase",
-      description: (event.description || "Event") + " - Ticket Purchase",
+      title: `${event.name} - Ticket Purchase`,
+      description: `${formData.tickets_quantity} ticket(s) for ${event.name}`,
       logo: event.banner_image || "https://chapa.link/asset/images/chapa_swirl.svg",
-      callback_url: window.location.origin + "/api/chapa-callback",
+      callback_url: `${window.location.origin}/api/chapa-callback`,
       return_url: window.location.href,
       "meta[title]": event.name || "",
+      "meta[event_id]": event.id,
+      "meta[tickets_quantity]": formData.tickets_quantity.toString(),
     };
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!chapaPublicKey) {
+      console.error('Chapa public key not available');
+      return;
+    }
+
     // Generate tx_ref for this purchase
     const tx_ref = generateTxRef();
     setCurrentTxRef(tx_ref);
     
-    // Call parent's purchase handler with formData and tx_ref
+    console.log('Generated tx_ref:', tx_ref);
+    console.log('Form data:', formData);
+    
+    // Call parent's purchase handler
     onPurchase({ ...formData, tx_ref } as any);
 
-    // Trigger Chapa form submission
+    // Submit Chapa form after a short delay
     setTimeout(() => {
       const chapaForm = (window as any).chapaFormRef?.current;
       if (chapaForm) {
+        console.log('Submitting Chapa form with tx_ref:', tx_ref);
         chapaForm.submit();
+      } else {
+        console.error('Chapa form reference not found');
       }
-    }, 100);
+    }, 200);
   };
 
   const chapaFormValues = currentTxRef ? buildChapaFormValues(currentTxRef) : null;
@@ -138,6 +152,7 @@ export const TicketPurchaseForm = ({
                 onChange={(e) => setFormData({ ...formData, buyer_name: e.target.value })}
                 required
                 placeholder="Enter your full name"
+                disabled={purchasing}
               />
             </div>
 
@@ -150,6 +165,7 @@ export const TicketPurchaseForm = ({
                 onChange={(e) => setFormData({ ...formData, buyer_email: e.target.value })}
                 required
                 placeholder="Enter your email address"
+                disabled={purchasing}
               />
             </div>
 
@@ -161,6 +177,7 @@ export const TicketPurchaseForm = ({
                 value={formData.buyer_phone}
                 onChange={(e) => setFormData({ ...formData, buyer_phone: e.target.value })}
                 placeholder="Enter your phone number (optional)"
+                disabled={purchasing}
               />
             </div>
 
@@ -174,17 +191,24 @@ export const TicketPurchaseForm = ({
                 value={formData.tickets_quantity}
                 onChange={(e) => setFormData({ ...formData, tickets_quantity: parseInt(e.target.value) || 1 })}
                 required
+                disabled={purchasing}
               />
             </div>
 
             <div className="bg-muted p-4 rounded-lg">
               <div className="flex justify-between items-center mb-2">
-                <span>Tickets ({formData.tickets_quantity}x)</span>
-                <span>{formatCurrency(event.price * formData.tickets_quantity)}</span>
+                <span>Price per ticket</span>
+                <span>{formatCurrency(event.price)}</span>
               </div>
-              <div className="flex justify-between items-center font-bold text-lg">
-                <span>Total</span>
-                <span>{formatCurrency(event.price * formData.tickets_quantity)}</span>
+              <div className="flex justify-between items-center mb-2">
+                <span>Quantity</span>
+                <span>{formData.tickets_quantity}</span>
+              </div>
+              <div className="border-t pt-2">
+                <div className="flex justify-between items-center font-bold text-lg">
+                  <span>Total Amount</span>
+                  <span>{formatCurrency(event.price * formData.tickets_quantity)}</span>
+                </div>
               </div>
             </div>
 
@@ -192,14 +216,14 @@ export const TicketPurchaseForm = ({
               type="submit" 
               className="w-full" 
               size="lg"
-              disabled={purchasing}
+              disabled={purchasing || !chapaPublicKey}
             >
-              {purchasing ? 'Processing...' : 'Purchase Tickets'}
+              {purchasing ? 'Processing...' : 'Pay with Chapa'}
             </Button>
 
             <p className="text-xs text-muted-foreground text-center">
-              By purchasing tickets, you agree to our terms and conditions. 
-              You will receive a confirmation email with your ticket details.
+              You will be redirected to Chapa's secure payment page. 
+              After payment, you'll return here to download your ticket.
             </p>
           </form>
         )}
@@ -208,7 +232,7 @@ export const TicketPurchaseForm = ({
           chapaFormValues={chapaFormValues}
           soldOut={soldOut}
           successfulTxRef={successfulTxRef}
-          onSubmit={() => {}}
+          onSubmit={() => console.log('Chapa form submitted')}
         />
       </CardContent>
     </Card>

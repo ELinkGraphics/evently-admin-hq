@@ -1,5 +1,5 @@
 
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 
 interface ChapaFormValues {
   public_key: string;
@@ -15,6 +15,8 @@ interface ChapaFormValues {
   callback_url: string;
   return_url: string;
   "meta[title]": string;
+  "meta[event_id]": string;
+  "meta[tickets_quantity]": string;
 }
 
 interface ChapaPaymentFormProps {
@@ -24,7 +26,7 @@ interface ChapaPaymentFormProps {
   onSubmit: () => void;
 }
 
-const CHAPA_HTML_CHECKOUT_URL = "https://api.chapa.co/v1/hosted/pay";
+const CHAPA_CHECKOUT_URL = "https://api.chapa.co/v1/hosted/pay";
 
 export const ChapaPaymentForm = ({ 
   chapaFormValues, 
@@ -34,22 +36,29 @@ export const ChapaPaymentForm = ({
 }: ChapaPaymentFormProps) => {
   const chapaFormRef = useRef<HTMLFormElement | null>(null);
 
-  // Expose the form ref to parent component
-  if (chapaFormRef.current) {
-    (window as any).chapaFormRef = chapaFormRef;
-  }
+  // Expose the form ref to parent component via window object
+  useEffect(() => {
+    if (chapaFormRef.current) {
+      (window as any).chapaFormRef = chapaFormRef;
+    }
+  }, [chapaFormRef.current]);
 
   if (soldOut || successfulTxRef || !chapaFormValues) {
     return null;
   }
 
+  console.log('Rendering Chapa form with values:', chapaFormValues);
+
   return (
     <form
       ref={chapaFormRef}
-      action={CHAPA_HTML_CHECKOUT_URL}
+      action={CHAPA_CHECKOUT_URL}
       method="POST"
       className="hidden"
-      onSubmit={onSubmit}
+      onSubmit={() => {
+        console.log('Chapa form onSubmit triggered');
+        onSubmit();
+      }}
     >
       <input type="hidden" name="public_key" value={chapaFormValues.public_key} />
       <input type="hidden" name="tx_ref" value={chapaFormValues.tx_ref} />
@@ -64,6 +73,8 @@ export const ChapaPaymentForm = ({
       <input type="hidden" name="callback_url" value={chapaFormValues.callback_url} />
       <input type="hidden" name="return_url" value={chapaFormValues.return_url} />
       <input type="hidden" name="meta[title]" value={chapaFormValues["meta[title]"]} />
+      <input type="hidden" name="meta[event_id]" value={chapaFormValues["meta[event_id]"]} />
+      <input type="hidden" name="meta[tickets_quantity]" value={chapaFormValues["meta[tickets_quantity]"]} />
     </form>
   );
 };

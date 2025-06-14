@@ -24,37 +24,53 @@ const PublicEvent = () => {
     ticketsQuantity: number;
     txRef: string;
   } | null>(null);
-  const successSectionRef = useRef<HTMLDivElement | null>(null);
 
-  // SessionStorage keys
-  const STORAGE_KEY_PREFIX = "chapa_ticket_";
+  // SessionStorage keys for buyer data persistence
+  const STORAGE_KEY_PREFIX = "chapa_buyer_";
+  const VERIFIED_KEY_PREFIX = "chapa_verified_";
 
-  // Helper to save buyer data for a tx_ref
   const saveBuyerSessionData = (tx_ref: string, formData: PurchaseFormData) => {
     try {
+      const buyerData = {
+        buyerName: formData.buyer_name,
+        buyerEmail: formData.buyer_email,
+        ticketsQuantity: formData.tickets_quantity,
+      };
+      
       window.sessionStorage.setItem(
         STORAGE_KEY_PREFIX + tx_ref,
-        JSON.stringify({
-          buyerName: formData.buyer_name,
-          buyerEmail: formData.buyer_email,
-          ticketsQuantity: formData.tickets_quantity,
-        })
+        JSON.stringify(buyerData)
       );
-      console.log('Buyer data saved to session:', tx_ref);
+      console.log('Buyer data saved to session storage for tx_ref:', tx_ref);
     } catch (err) {
       console.error('Error saving buyer session data:', err);
     }
   };
 
-  // Helper to load buyer data by tx_ref
   const loadBuyerSessionData = (tx_ref: string) => {
     try {
       const raw = window.sessionStorage.getItem(STORAGE_KEY_PREFIX + tx_ref);
-      if (!raw) return null;
-      return JSON.parse(raw);
+      return raw ? JSON.parse(raw) : null;
     } catch (err) {
       console.error('Error loading buyer session data:', err);
       return null;
+    }
+  };
+
+  const markPaymentAsVerified = (tx_ref: string) => {
+    try {
+      window.sessionStorage.setItem(VERIFIED_KEY_PREFIX + tx_ref, "true");
+    } catch (err) {
+      console.error('Error marking payment as verified:', err);
+    }
+  };
+
+  const isPaymentAlreadyVerified = (tx_ref: string) => {
+    try {
+      return window.sessionStorage.getItem(VERIFIED_KEY_PREFIX + tx_ref) === "true";
+    } catch (err) {
+      console.error('Error checking verification status:', err);
+      return false;
     }
   };
 
@@ -65,67 +81,33 @@ const PublicEvent = () => {
   }, [eventId]);
 
   useEffect(() => {
+    fetchChapaPublicKey();
+  }, []);
+
+  useEffect(() => {
+    // Check URL parameters for Chapa return
     const url = new URL(window.location.href);
     const tx_ref = url.searchParams.get("tx_ref");
     const status = url.searchParams.get("status");
     
-    console.log('URL params:', { tx_ref, status });
+    console.log('URL parameters:', { tx_ref, status });
     
     if (tx_ref) {
-      if (!window.sessionStorage.getItem("chapa_verified_" + tx_ref)) {
-        console.log('Handling Chapa return for tx_ref:', tx_ref);
+      if (!isPaymentAlreadyVerified(tx_ref)) {
+        console.log('Starting payment verification for tx_ref:', tx_ref);
         handleChapaReturn(tx_ref);
       } else {
-        console.log('Payment already verified, loading session data');
+        console.log('Payment already verified, loading cached data');
         const sessionBuyer = loadBuyerSessionData(tx_ref);
         if (sessionBuyer) {
           setSuccessfulTxRef(tx_ref);
           setTicketDownloadData({
-            buyerName: sessionBuyer.buyerName,
-            buyerEmail: sessionBuyer.buyerEmail,
-            ticketsQuantity: sessionBuyer.ticketsQuantity,
+            ...sessionBuyer,
             txRef: tx_ref,
           });
-          // Scroll to success section after data is set
-          setTimeout(() => {
-            if (successSectionRef.current) {
-              successSectionRef.current.scrollIntoView({ 
-                behavior: "smooth", 
-                block: "center" 
-              });
-              console.log('Scrolled to success section');
-            }
-          }, 500);
-        } else {
-          console.log('No session data found for tx_ref:', tx_ref);
-          setSuccessfulTxRef(null);
-          setTicketDownloadData(null);
         }
       }
     }
-  }, []);
-
-  useEffect(() => {
-    async function fetchKey() {
-      try {
-        console.log('Fetching Chapa public key...');
-        const res = await fetch(
-          "https://oqxtwyvkcyzqusjurpcs.supabase.co/functions/v1/get-chapa-public-key"
-        );
-        const data = await res.json();
-        console.log('Chapa key response:', data);
-        if (data.public_key) {
-          setChapaPublicKey(data.public_key);
-        } else {
-          setChapaPublicKey(null);
-          console.error('No public key in response');
-        }
-      } catch (err) {
-        console.error('Error fetching Chapa key:', err);
-        setChapaPublicKey(null);
-      }
-    }
-    fetchKey();
   }, []);
 
   const fetchEvent = async () => {
@@ -152,7 +134,7 @@ const PublicEvent = () => {
         price: data.price || 0,
       };
       
-      console.log('Event loaded:', eventData);
+      console.log('Event loaded successfully:', eventData.name);
       setEvent(eventData);
     } catch (error) {
       console.error('Error fetching event:', error);
@@ -166,67 +148,100 @@ const PublicEvent = () => {
     }
   };
 
+  const fetchChapaPublicKey = async () => {
+    try {
+      console.log('Fetching Chapa public key...');
+      const response = await fetch(
+        "https://oqxtwyvkcyzqusjurpcs.supabase.co/functions/v1/get-chapa-public-key",
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9xeHR3eXZrY3l6cXVzanVycGNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3MzE5MjQsImV4cCI6MjA2NTMwNzkyNH0.IcQKOaM0D6BpA6tmarNivD28xobxosNE0Qq455z631E",
+          },
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Chapa public key fetched successfully');
+      
+      if (data.public_key) {
+        setChapaPublicKey(data.public_key);
+      } else {
+        console.error('No public key in response');
+        setChapaPublicKey(null);
+      }
+    } catch (err) {
+      console.error('Error fetching Chapa public key:', err);
+      setChapaPublicKey(null);
+      toast({
+        title: "Warning",
+        description: "Payment service temporarily unavailable. Please try again later.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleChapaReturn = async (tx_ref: string) => {
-    console.log('Starting Chapa verification for:', tx_ref);
+    console.log('Processing Chapa payment return for tx_ref:', tx_ref);
     setPurchasing(true);
     
     try {
       const verification = await verifyChapaPayment(tx_ref);
-      console.log('Verification result:', verification);
+      console.log('Payment verification result:', verification);
       
-      window.sessionStorage.setItem("chapa_verified_" + tx_ref, "true");
+      // Mark as verified to prevent duplicate calls
+      markPaymentAsVerified(tx_ref);
 
       if (verification.payment_status === "completed") {
         console.log('Payment completed successfully');
-        toast({
-          title: "Payment Successful",
-          description: "Thank you! Your payment was successful. Download your ticket below.",
-          variant: "default",
-        });
         
         const sessionBuyer = loadBuyerSessionData(tx_ref);
         if (sessionBuyer) {
           setSuccessfulTxRef(tx_ref);
           setTicketDownloadData({
-            buyerName: sessionBuyer.buyerName,
-            buyerEmail: sessionBuyer.buyerEmail,
-            ticketsQuantity: sessionBuyer.ticketsQuantity,
+            ...sessionBuyer,
             txRef: tx_ref,
           });
           
-          // Refresh event data to get updated ticket count
+          // Refresh event data to show updated ticket count
           await fetchEvent();
           
-          // Scroll to success section after state updates
-          setTimeout(() => {
-            if (successSectionRef.current) {
-              successSectionRef.current.scrollIntoView({ 
-                behavior: "smooth", 
-                block: "center" 
-              });
-              console.log('Scrolled to success section after verification');
-            }
-          }, 500);
+          toast({
+            title: "Payment Successful! 🎉",
+            description: "Your tickets have been purchased successfully. You can now download your ticket PDF.",
+            duration: 5000,
+          });
         } else {
-          console.error('No session buyer data found');
+          console.error('No buyer data found in session storage');
+          toast({
+            title: "Payment Successful",
+            description: "Payment completed but buyer information was lost. Please contact support.",
+            variant: "destructive",
+          });
         }
       } else {
-        console.log('Payment not completed:', verification.payment_status);
+        console.log('Payment not completed. Status:', verification.payment_status);
         setSuccessfulTxRef(null);
         setTicketDownloadData(null);
+        
         toast({
-          title: "Payment Failed or Pending",
-          description: "Payment verification returned: " + (verification.chapa_status || "Unknown"),
+          title: "Payment Issue",
+          description: `Payment status: ${verification.chapa_status || 'Unknown'}. Please try again or contact support.`,
           variant: "destructive",
         });
       }
     } catch (error: any) {
-      console.error('Verification error:', error);
+      console.error('Payment verification error:', error);
       setSuccessfulTxRef(null);
       setTicketDownloadData(null);
+      
       toast({
         title: "Verification Error",
-        description: error.message || "Payment verification failed",
+        description: error.message || "Could not verify payment. Please contact support if you were charged.",
         variant: "destructive",
       });
     } finally {
@@ -240,27 +255,26 @@ const PublicEvent = () => {
       return;
     }
     
-    console.log('Starting purchase process:', formData);
+    console.log('Starting purchase process with tx_ref:', formData.tx_ref);
     setPurchasing(true);
 
     try {
       const availableTickets = event.capacity - (event.tickets_sold || 0);
-      console.log('Available tickets:', availableTickets);
-
+      
       if (formData.tickets_quantity > availableTickets) {
         throw new Error(`Only ${availableTickets} tickets available`);
       }
       
       if (!chapaPublicKey) {
-        throw new Error("Payment is currently unavailable, please try again later.");
+        throw new Error("Payment service is currently unavailable. Please try again later.");
       }
 
-      // Save buyer data to session before redirecting to Chapa
+      // Save buyer data before redirect
       saveBuyerSessionData(formData.tx_ref, formData);
-      console.log('Purchase process completed, redirecting to Chapa...');
+      console.log('Purchase initiated, buyer data saved. Redirecting to Chapa...');
       
     } catch (error: any) {
-      console.error("Error starting payment:", error);
+      console.error("Error initiating purchase:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to start payment. Please try again.",
@@ -275,7 +289,7 @@ const PublicEvent = () => {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading event...</p>
+          <p className="text-muted-foreground">Loading event details...</p>
         </div>
       </div>
     );
@@ -288,7 +302,9 @@ const PublicEvent = () => {
           <CardContent className="p-8 text-center">
             <Ticket className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">Event Not Found</h3>
-            <p className="text-muted-foreground">This event is not available for purchase or does not exist.</p>
+            <p className="text-muted-foreground">
+              This event is not available for purchase or does not exist.
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -308,18 +324,16 @@ const PublicEvent = () => {
             soldOut={soldOut}
           />
 
-          <div ref={successSectionRef}>
-            <TicketPurchaseForm
-              event={event}
-              availableTickets={availableTickets}
-              soldOut={soldOut}
-              purchasing={purchasing}
-              successfulTxRef={successfulTxRef}
-              ticketDownloadData={ticketDownloadData}
-              chapaPublicKey={chapaPublicKey}
-              onPurchase={handlePurchase}
-            />
-          </div>
+          <TicketPurchaseForm
+            event={event}
+            availableTickets={availableTickets}
+            soldOut={soldOut}
+            purchasing={purchasing}
+            successfulTxRef={successfulTxRef}
+            ticketDownloadData={ticketDownloadData}
+            chapaPublicKey={chapaPublicKey}
+            onPurchase={handlePurchase}
+          />
         </div>
       </div>
     </div>
