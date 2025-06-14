@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Event, TicketPurchase } from '@/types/event';
 import { useToast } from '@/hooks/use-toast';
 import { createChapaPaymentSession } from "@/api/chapa";
+import { verifyChapaPayment } from "@/api/verifyChapaPayment";
 
 const formatDate = (date: string) => {
   return new Date(date).toLocaleDateString('en-US', {
@@ -60,6 +61,17 @@ const PublicEvent = () => {
     }
   }, [eventId]);
 
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const tx_ref = url.searchParams.get("tx_ref");
+    if (tx_ref) {
+      // Avoid duplicate verification (e.g. after manual refresh)
+      if (!window.sessionStorage.getItem("chapa_verified_" + tx_ref)) {
+        handleChapaReturn(tx_ref);
+      }
+    }
+  }, []);
+
   const fetchEvent = async () => {
     try {
       const { data, error } = await supabase
@@ -87,6 +99,38 @@ const PublicEvent = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleChapaReturn = async (tx_ref: string) => {
+    setPurchasing(true);
+    try {
+      const verification = await verifyChapaPayment(tx_ref);
+      window.sessionStorage.setItem("chapa_verified_" + tx_ref, "true");
+      // Show toast and reload event data for updated ticket status
+      if (verification.payment_status === "completed") {
+        toast({
+          title: "Payment Successful",
+          description: "Thank you! Your payment was successful. Check your email for ticket details.",
+          variant: "default",
+        });
+        // Optionally refetch/poll event stats
+        fetchEvent();
+      } else {
+        toast({
+          title: "Payment Failed or Pending",
+          description: "Payment verification returned: " + (verification.chapa_status || "Unknown"),
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Verification Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setPurchasing(false);
     }
   };
 
