@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -121,6 +120,20 @@ export const AttendeesList = ({ searchTerm, statusFilter, eventFilter }: Attende
     },
   });
 
+  // Utility function to get avatar fallback letter
+  function getAvatarFallback(attendee: AttendeeRecord): string {
+    // Try the first character of buyer_name if present and non-empty
+    if (attendee.buyer_name && attendee.buyer_name.trim().length > 0) {
+      return attendee.buyer_name.trim().charAt(0).toUpperCase();
+    }
+    // Try to use the first letter of their email
+    if (attendee.buyer_email && attendee.buyer_email.trim().length > 0) {
+      return attendee.buyer_email.trim().charAt(0).toUpperCase();
+    }
+    // Last resort, 'U' for unknown
+    return 'U';
+  }
+
   // Set up real-time subscription
   useEffect(() => {
     const channelName = `attendees-changes-${Math.random().toString(36).substr(2, 9)}`;
@@ -220,11 +233,11 @@ export const AttendeesList = ({ searchTerm, statusFilter, eventFilter }: Attende
               <div className="flex items-center space-x-4">
                 <Avatar>
                   <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white">
-                    {attendee.buyer_name.charAt(0)}
+                    {getAvatarFallback(attendee)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
-                  <h4 className="font-semibold text-foreground">{attendee.buyer_name}</h4>
+                  <h4 className="font-semibold text-foreground">{attendee.buyer_name || "Unknown"}</h4>
                   <div className="flex items-center space-x-4 mt-1 text-sm text-muted-foreground">
                     <div className="flex items-center space-x-1">
                       <Mail className="w-3 h-3" />
