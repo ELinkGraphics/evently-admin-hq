@@ -3,6 +3,7 @@ import { useRef } from "react";
 import { Event, TicketPurchase } from "@/types/event";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { QRCodeSVG } from "qrcode.react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { Button } from "@/components/ui/button";
@@ -17,16 +18,40 @@ export const TicketDownloadCard = ({ purchase, event }: TicketDownloadCardProps)
 
   const downloadPDF = async () => {
     if (!ticketRef.current) return;
+    
     try {
-      const canvas = await html2canvas(ticketRef.current, { scale: 2 });
-      const imgData = canvas.toDataURL("image/png");
+      console.log("Starting PDF generation...");
+      
+      // Wait a moment to ensure all elements are rendered
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const canvas = await html2canvas(ticketRef.current, { 
+        scale: 2,
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: '#ffffff',
+        width: ticketRef.current.offsetWidth,
+        height: ticketRef.current.offsetHeight,
+        logging: false
+      });
+      
+      console.log("Canvas created:", canvas.width, "x", canvas.height);
+      
+      if (canvas.width === 0 || canvas.height === 0) {
+        throw new Error("Canvas has invalid dimensions");
+      }
+      
+      const imgData = canvas.toDataURL("image/png", 1.0);
       const pdf = new jsPDF({
         orientation: "portrait",
-        unit: "pt",
+        unit: "px",
         format: [canvas.width, canvas.height],
       });
+      
       pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
       pdf.save(`ticket-${purchase.chapa_tx_ref || purchase.id}.pdf`);
+      
+      console.log("PDF generated successfully");
     } catch (error) {
       console.error("Failed to generate PDF:", error);
     }
@@ -41,7 +66,7 @@ export const TicketDownloadCard = ({ purchase, event }: TicketDownloadCardProps)
     }
   };
 
-  // Removed QR code
+  const qrValue = purchase.chapa_tx_ref || purchase.id || "no-ref";
 
   return (
     <div className="w-full flex flex-col items-center mt-4">
@@ -75,11 +100,23 @@ export const TicketDownloadCard = ({ purchase, event }: TicketDownloadCardProps)
             <span>Seat Number:</span>
             <span>-</span>
           </div>
-          {/* QR code removed */}
+          <div className="flex flex-col items-center my-4">
+            <div className="p-2 bg-white rounded-lg border">
+              <QRCodeSVG
+                value={qrValue}
+                size={96}
+                bgColor="#ffffff"
+                fgColor="#191D32"
+                includeMargin={true}
+              />
+            </div>
+            <span className="block text-xs mt-2 text-muted-foreground">
+              Show this QR code at entry
+            </span>
+          </div>
         </CardContent>
       </Card>
       <Button className="mt-4" onClick={downloadPDF}>Download Ticket (PDF)</Button>
     </div>
   );
 };
-
