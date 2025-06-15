@@ -155,6 +155,50 @@ export type Database = {
         }
         Relationships: []
       }
+      event_custom_fields: {
+        Row: {
+          created_at: string
+          event_id: string
+          field_label: string
+          field_name: string
+          field_options: Json | null
+          field_order: number
+          field_type: string
+          id: string
+          is_required: boolean
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          field_label: string
+          field_name: string
+          field_options?: Json | null
+          field_order?: number
+          field_type: string
+          id?: string
+          is_required?: boolean
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          field_label?: string
+          field_name?: string
+          field_options?: Json | null
+          field_order?: number
+          field_type?: string
+          id?: string
+          is_required?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_custom_fields_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           attendees: number | null
@@ -333,15 +377,19 @@ export type Database = {
         Row: {
           amount_paid: number
           buyer_email: string
-          buyer_name: string
+          buyer_name: string | null
           buyer_phone: string | null
           chapa_checkout_url: string | null
           chapa_transaction_id: string | null
+          chapa_tx_ref: string | null
           check_in_time: string | null
           checked_in: boolean | null
           created_at: string
+          custom_fields: Json | null
           event_id: string
+          first_name: string | null
           id: string
+          last_name: string | null
           payment_method:
             | Database["public"]["Enums"]["payment_method_enum"]
             | null
@@ -359,15 +407,19 @@ export type Database = {
         Insert: {
           amount_paid: number
           buyer_email: string
-          buyer_name: string
+          buyer_name?: string | null
           buyer_phone?: string | null
           chapa_checkout_url?: string | null
           chapa_transaction_id?: string | null
+          chapa_tx_ref?: string | null
           check_in_time?: string | null
           checked_in?: boolean | null
           created_at?: string
+          custom_fields?: Json | null
           event_id: string
+          first_name?: string | null
           id?: string
+          last_name?: string | null
           payment_method?:
             | Database["public"]["Enums"]["payment_method_enum"]
             | null
@@ -385,15 +437,19 @@ export type Database = {
         Update: {
           amount_paid?: number
           buyer_email?: string
-          buyer_name?: string
+          buyer_name?: string | null
           buyer_phone?: string | null
           chapa_checkout_url?: string | null
           chapa_transaction_id?: string | null
+          chapa_tx_ref?: string | null
           check_in_time?: string | null
           checked_in?: boolean | null
           created_at?: string
+          custom_fields?: Json | null
           event_id?: string
+          first_name?: string | null
           id?: string
+          last_name?: string | null
           payment_method?:
             | Database["public"]["Enums"]["payment_method_enum"]
             | null

@@ -1,4 +1,3 @@
-
 export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded' | 'cancelled';
 export type EventStatus = 'Draft' | 'Active' | 'Cancelled' | 'Completed';
 export type PaymentMethod = 'chapa' | 'bank_transfer' | 'cash' | 'mobile_money';
@@ -126,5 +125,17 @@ export interface FinancialTransaction {
   description?: string | null;
   external_transaction_id?: string | null;
   processed_at: string;
+  created_at: string;
+}
+
+export interface EventCustomField {
+  id: string;
+  event_id: string;
+  field_name: string;
+  field_label: string;
+  field_type: 'text' | 'email' | 'tel' | 'number' | 'select' | 'textarea';
+  field_options?: any | null; // for select fields, usually an array or object
+  is_required: boolean;
+  field_order: number;
   created_at: string;
 }

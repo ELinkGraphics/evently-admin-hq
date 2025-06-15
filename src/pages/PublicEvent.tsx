@@ -9,6 +9,8 @@ import { Calendar, MapPin, Clock, Users, DollarSign, Ticket } from 'lucide-react
 import { supabase } from '@/integrations/supabase/client';
 import { Event, TicketPurchase } from '@/types/event';
 import { useToast } from '@/hooks/use-toast';
+import { useEventCustomFields } from '@/hooks/useEventCustomFields';
+import { CustomFieldsForm } from '@/components/events/CustomFieldsForm';
 
 const formatDate = (date: string) => {
   return new Date(date).toLocaleDateString('en-US', {
@@ -40,12 +42,21 @@ const PublicEvent = () => {
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
+
+  // new: for dynamic fields
+  const { data: customFields = [] } = useEventCustomFields(eventId);
+
+  // Split "buyer name" into first and last, keep email/phone/quantity, plus dynamic custom fields
   const [formData, setFormData] = useState({
-    buyer_name: '',
+    first_name: '',
+    last_name: '',
     buyer_email: '',
     buyer_phone: '',
     tickets_quantity: 1,
   });
+
+  // Track dynamic field values
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (eventId) {
@@ -90,40 +101,66 @@ const PublicEvent = () => {
     setPurchasing(true);
     try {
       const totalAmount = event.price * formData.tickets_quantity;
-      
-      // Check if there are enough tickets available
       const availableTickets = event.capacity - (event.tickets_sold || 0);
       if (formData.tickets_quantity > availableTickets) {
         throw new Error(`Only ${availableTickets} tickets available`);
       }
 
+      // Make sure all required dynamic fields are present
+      for (const field of customFields) {
+        if (field.is_required && !customFieldValues[field.field_name]) {
+          throw new Error(`Please fill in the required field: ${field.field_label}`);
+        }
+      }
+      // Ensure first and last name for Chapa
+      if (!formData.first_name.trim() || !formData.last_name.trim()) {
+        throw new Error("Please enter your first and last name.");
+      }
+
+      // Generate Chapa tx_ref
+      const chapaTxRef = `event_${eventId}_${Date.now()}`;
+      // Prepare Chapa checkout params (can be used with Chapa's HTML form or a redirect to their API)
+      // See Chapa docs for best practice, here we only store the data for now
+
+      // Create pending purchase in DB (we will support mark as paid after Chapa redirect/webhook)
       const { error } = await supabase
         .from('ticket_purchases')
         .insert([{
           event_id: event.id,
-          buyer_name: formData.buyer_name,
+          first_name: formData.first_name,
+          last_name: formData.last_name,
           buyer_email: formData.buyer_email,
           buyer_phone: formData.buyer_phone || null,
           tickets_quantity: formData.tickets_quantity,
           amount_paid: totalAmount,
+          custom_fields: customFieldValues,
+          chapa_tx_ref: chapaTxRef,
+          // buyer_name left out (nullable), payment_status will be pending by default
         }]);
 
       if (error) throw error;
 
+      // Build Chapa HTML checkout params automatic form/redirect
+      // On real system, you may want to create a supabase edge function as "initialize-chapa-payment"
+      // For now, we just show toast, TODO: real chapa integration (redirect or embeddable form)
       toast({
-        title: "Success!",
-        description: `Tickets purchased successfully! You will receive a confirmation email at ${formData.buyer_email}`,
+        title: "Proceed to Chapa Payment",
+        description: "Redirecting to payment page...",
       });
 
-      // Reset form
+      // TODO: Actually open chapa checkout page with POST request of params, e.g. via <form> auto-submit or a backend function
+      // Use event.name -> customization[title]
+      // event.description -> customization[description]
+      // event.banner_image -> customization[logo], if set
+
       setFormData({
-        buyer_name: '',
+        first_name: '',
+        last_name: '',
         buyer_email: '',
         buyer_phone: '',
         tickets_quantity: 1,
       });
-
-      // Refresh event data to show updated ticket count
+      setCustomFieldValues({});
       fetchEvent();
     } catch (error: any) {
       console.error('Error purchasing tickets:', error);
@@ -236,17 +273,28 @@ const PublicEvent = () => {
                 </div>
               ) : (
                 <form onSubmit={handlePurchase} className="space-y-4">
+                  {/* First name / last name for Chapa */}
                   <div>
-                    <Label htmlFor="buyer_name">Full Name *</Label>
+                    <Label htmlFor="first_name">First Name *</Label>
                     <Input
-                      id="buyer_name"
-                      value={formData.buyer_name}
-                      onChange={(e) => setFormData({ ...formData, buyer_name: e.target.value })}
+                      id="first_name"
+                      value={formData.first_name}
+                      onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                       required
-                      placeholder="Enter your full name"
+                      placeholder="Enter your first name"
                     />
                   </div>
-
+                  <div>
+                    <Label htmlFor="last_name">Last Name *</Label>
+                    <Input
+                      id="last_name"
+                      value={formData.last_name}
+                      onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                      required
+                      placeholder="Enter your last name"
+                    />
+                  </div>
+                  {/* Email/phone/quantity */}
                   <div>
                     <Label htmlFor="buyer_email">Email Address *</Label>
                     <Input
@@ -258,7 +306,6 @@ const PublicEvent = () => {
                       placeholder="Enter your email address"
                     />
                   </div>
-
                   <div>
                     <Label htmlFor="buyer_phone">Phone Number</Label>
                     <Input
@@ -269,7 +316,6 @@ const PublicEvent = () => {
                       placeholder="Enter your phone number (optional)"
                     />
                   </div>
-
                   <div>
                     <Label htmlFor="tickets_quantity">Number of Tickets *</Label>
                     <Input
@@ -282,7 +328,14 @@ const PublicEvent = () => {
                       required
                     />
                   </div>
-
+                  {/* Dynamic custom fields */}
+                  <CustomFieldsForm
+                    customFields={customFields}
+                    fieldValues={customFieldValues}
+                    setFieldValues={setCustomFieldValues}
+                    disabled={purchasing}
+                  />
+                  {/* Summary */}
                   <div className="bg-muted p-4 rounded-lg">
                     <div className="flex justify-between items-center mb-2">
                       <span>Tickets ({formData.tickets_quantity}x)</span>
@@ -293,7 +346,6 @@ const PublicEvent = () => {
                       <span>{formatCurrency(event.price * formData.tickets_quantity)}</span>
                     </div>
                   </div>
-
                   <Button 
                     type="submit" 
                     className="w-full" 
@@ -302,7 +354,6 @@ const PublicEvent = () => {
                   >
                     {purchasing ? 'Processing...' : 'Purchase Tickets'}
                   </Button>
-
                   <p className="text-xs text-muted-foreground text-center">
                     By purchasing tickets, you agree to our terms and conditions. 
                     You will receive a confirmation email with your ticket details.
