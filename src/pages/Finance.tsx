@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Sidebar } from "@/components/navigation/Sidebar";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
@@ -54,7 +53,6 @@ const Finance = () => {
               </Button>
             </div>
           </div>
-          {/* Show sync results */}
           {syncResults && syncResults.length > 0 && (
             <div className="mb-4">
               <div className="font-semibold mb-2">Sync Results:</div>
@@ -90,9 +88,17 @@ const Finance = () => {
               </div>
             </div>
           )}
-          {/* Test tables for webhook and live Chapa status */}
-          <ChapaWebhookTestTable />
-          <ChapaLiveVerifyTable />
+
+          {/* Tables section: horizontally arranged on desktop, stacked on mobile */}
+          <div className="flex flex-col lg:flex-row gap-6">
+            <div className="flex-1 min-w-0">
+              <ChapaWebhookTestTable />
+            </div>
+            <div className="flex-1 min-w-0">
+              <ChapaLiveVerifyTable />
+            </div>
+          </div>
+          
           <FinanceDashboard />
         </main>
       </div>
