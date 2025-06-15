@@ -90,10 +90,9 @@ serve(async (req) => {
       logo: eventBannerImage || event.banner_image,
       callback_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/verify-chapa-payment`,
       return_url: `${req.headers.get('origin')}/event/${eventId}?payment=success&tx_ref=${chapaTxRef}`,
-      meta: {
-        event_id: eventId,
-        purchase_id: purchase.id
-      }
+      // Flatten meta data instead of nesting
+      'meta[event_id]': eventId,
+      'meta[purchase_id]': purchase.id
     }
 
     console.log('Chapa payload prepared:', chapaPayload)

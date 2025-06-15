@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -185,10 +186,10 @@ const PublicEvent = () => {
       if (error) throw error;
 
       if (data.success) {
-        // Create Chapa HTML checkout form and auto-submit
+        // Create Chapa HTML checkout form and auto-submit - FIXED ENDPOINT
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = 'https://checkout.chapa.co/checkout/payment';
+        form.action = 'https://checkout.chapa.co/'; // Fixed: removed /checkout/payment
         form.style.display = 'none';
 
         // Add all Chapa payload fields as hidden inputs
@@ -201,6 +202,9 @@ const PublicEvent = () => {
         });
 
         document.body.appendChild(form);
+        
+        console.log('Submitting form to Chapa with payload:', data.chapaPayload);
+        
         form.submit();
         document.body.removeChild(form);
 
