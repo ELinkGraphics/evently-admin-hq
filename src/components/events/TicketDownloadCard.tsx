@@ -11,20 +11,16 @@ import { Button } from "@/components/ui/button";
 interface TicketDownloadCardProps {
   purchase: TicketPurchase;
   event: Event;
+  showQR?: boolean;
 }
 
-export const TicketDownloadCard = ({ purchase, event }: TicketDownloadCardProps) => {
+export const TicketDownloadCard = ({ purchase, event, showQR = true }: TicketDownloadCardProps) => {
   const ticketRef = useRef<HTMLDivElement>(null);
 
   const downloadPDF = async () => {
     if (!ticketRef.current) return;
-    
     try {
-      console.log("Starting PDF generation...");
-      
-      // Wait a moment to ensure all elements are rendered
       await new Promise(resolve => setTimeout(resolve, 100));
-      
       const canvas = await html2canvas(ticketRef.current, { 
         scale: 2,
         useCORS: true,
@@ -34,30 +30,19 @@ export const TicketDownloadCard = ({ purchase, event }: TicketDownloadCardProps)
         height: ticketRef.current.offsetHeight,
         logging: false
       });
-      
-      console.log("Canvas created:", canvas.width, "x", canvas.height);
-      
-      if (canvas.width === 0 || canvas.height === 0) {
-        throw new Error("Canvas has invalid dimensions");
-      }
-      
       const imgData = canvas.toDataURL("image/png", 1.0);
       const pdf = new jsPDF({
         orientation: "portrait",
         unit: "px",
         format: [canvas.width, canvas.height],
       });
-      
       pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
       pdf.save(`ticket-${purchase.chapa_tx_ref || purchase.id}.pdf`);
-      
-      console.log("PDF generated successfully");
     } catch (error) {
       console.error("Failed to generate PDF:", error);
     }
   };
 
-  // Safe date formatting
   const formatDate = (dateString: string) => {
     try {
       return new Date(dateString).toLocaleDateString();
@@ -100,20 +85,22 @@ export const TicketDownloadCard = ({ purchase, event }: TicketDownloadCardProps)
             <span>Seat Number:</span>
             <span>-</span>
           </div>
-          <div className="flex flex-col items-center my-4">
-            <div className="p-2 bg-white rounded-lg border">
-              <QRCodeCanvas
-                value={qrValue}
-                size={96}
-                bgColor="#ffffff"
-                fgColor="#191D32"
-                includeMargin={true}
-              />
+          {showQR && (
+            <div className="flex flex-col items-center my-4">
+              <div className="p-2 bg-white rounded-lg border">
+                <QRCodeCanvas
+                  value={qrValue}
+                  size={96}
+                  bgColor="#ffffff"
+                  fgColor="#191D32"
+                  includeMargin={true}
+                />
+              </div>
+              <span className="block text-xs mt-2 text-muted-foreground">
+                Show this QR code at entry
+              </span>
             </div>
-            <span className="block text-xs mt-2 text-muted-foreground">
-              Show this QR code at entry
-            </span>
-          </div>
+          )}
         </CardContent>
       </Card>
       <Button className="mt-4" onClick={downloadPDF}>Download Ticket (PDF)</Button>

@@ -1,6 +1,6 @@
 
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Event, TicketPurchase } from "@/types/event";
 import { Card, CardContent } from "@/components/ui/card";
@@ -105,7 +105,6 @@ const TicketConfirmation = () => {
     );
   }
 
-  // Safe date formatting
   const formatDate = (dateString: string) => {
     try {
       return new Date(dateString).toLocaleDateString();
@@ -127,7 +126,8 @@ const TicketConfirmation = () => {
                 <span>{formatDate(event.date)}</span> has been purchased.
               </div>
               <div>
-                <TicketDownloadCard purchase={purchase} event={event} />
+                {/* Remove QR from confirmation page */}
+                <TicketDownloadCard purchase={purchase} event={event} showQR={false} />
               </div>
             </div>
           </CardContent>
