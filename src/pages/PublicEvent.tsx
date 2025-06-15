@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,10 +38,59 @@ const formatCurrency = (amount: number) => {
 
 const PublicEvent = () => {
   const { eventId } = useParams();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
+
+  // Check for payment success/failure from URL params
+  useEffect(() => {
+    const paymentStatus = searchParams.get('payment');
+    const txRef = searchParams.get('tx_ref');
+    
+    if (paymentStatus === 'success' && txRef) {
+      // Verify the payment
+      verifyPayment(txRef);
+    } else if (paymentStatus === 'failed') {
+      toast({
+        title: "Payment Failed",
+        description: "Your payment could not be processed. Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [searchParams]);
+
+  const verifyPayment = async (txRef: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-chapa-payment', {
+        body: { tx_ref: txRef, status: 'success' }
+      });
+
+      if (error) throw error;
+
+      if (data.verified) {
+        toast({
+          title: "Payment Successful!",
+          description: "Your tickets have been purchased successfully. You will receive a confirmation email shortly.",
+        });
+        fetchEvent(); // Refresh event data
+      } else {
+        toast({
+          title: "Payment Verification Failed",
+          description: "We couldn't verify your payment. Please contact support if you were charged.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error verifying payment:', error);
+      toast({
+        title: "Verification Error",
+        description: "Error verifying payment. Please contact support if you were charged.",
+        variant: "destructive",
+      });
+    }
+  };
 
   // new: for dynamic fields
   const { data: customFields = [] } = useEventCustomFields(eventId);
@@ -117,51 +166,52 @@ const PublicEvent = () => {
         throw new Error("Please enter your first and last name.");
       }
 
-      // Generate Chapa tx_ref
-      const chapaTxRef = `event_${eventId}_${Date.now()}`;
-      // Prepare Chapa checkout params (can be used with Chapa's HTML form or a redirect to their API)
-      // See Chapa docs for best practice, here we only store the data for now
-
-      // Create pending purchase in DB (we will support mark as paid after Chapa redirect/webhook)
-      const { error } = await supabase
-        .from('ticket_purchases')
-        .insert([{
-          event_id: event.id,
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          buyer_email: formData.buyer_email,
-          buyer_phone: formData.buyer_phone || null,
-          tickets_quantity: formData.tickets_quantity,
-          amount_paid: totalAmount,
-          custom_fields: customFieldValues,
-          chapa_tx_ref: chapaTxRef,
-          // buyer_name left out (nullable), payment_status will be pending by default
-        }]);
+      // Initialize Chapa payment
+      const { data, error } = await supabase.functions.invoke('initialize-chapa-payment', {
+        body: {
+          eventId: event.id,
+          firstName: formData.first_name,
+          lastName: formData.last_name,
+          email: formData.buyer_email,
+          phone: formData.buyer_phone,
+          quantity: formData.tickets_quantity,
+          customFields: customFieldValues,
+          eventName: event.name,
+          eventDescription: event.description,
+          eventBannerImage: event.banner_image
+        }
+      });
 
       if (error) throw error;
 
-      // Build Chapa HTML checkout params automatic form/redirect
-      // On real system, you may want to create a supabase edge function as "initialize-chapa-payment"
-      // For now, we just show toast, TODO: real chapa integration (redirect or embeddable form)
-      toast({
-        title: "Proceed to Chapa Payment",
-        description: "Redirecting to payment page...",
-      });
+      if (data.success) {
+        // Create Chapa HTML checkout form and auto-submit
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'https://checkout.chapa.co/checkout/payment';
+        form.style.display = 'none';
 
-      // TODO: Actually open chapa checkout page with POST request of params, e.g. via <form> auto-submit or a backend function
-      // Use event.name -> customization[title]
-      // event.description -> customization[description]
-      // event.banner_image -> customization[logo], if set
+        // Add all Chapa payload fields as hidden inputs
+        Object.entries(data.chapaPayload).forEach(([key, value]) => {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = key;
+          input.value = typeof value === 'object' ? JSON.stringify(value) : String(value);
+          form.appendChild(input);
+        });
 
-      setFormData({
-        first_name: '',
-        last_name: '',
-        buyer_email: '',
-        buyer_phone: '',
-        tickets_quantity: 1,
-      });
-      setCustomFieldValues({});
-      fetchEvent();
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+
+        toast({
+          title: "Redirecting to Payment",
+          description: "You are being redirected to Chapa for secure payment processing...",
+        });
+      } else {
+        throw new Error(data.error || 'Failed to initialize payment');
+      }
+
     } catch (error: any) {
       console.error('Error purchasing tickets:', error);
       toast({
