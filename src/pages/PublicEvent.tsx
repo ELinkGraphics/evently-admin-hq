@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,10 +8,13 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, MapPin, Clock, Users, DollarSign, Ticket } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { Event, TicketPurchase } from '@/types/event';
+import { Event } from '@/types/event';
 import { useToast } from '@/hooks/use-toast';
 import { useEventCustomFields } from '@/hooks/useEventCustomFields';
 import { CustomFieldsForm } from '@/components/events/CustomFieldsForm';
+
+const CHAPA_PUBLIC_KEY = 'CHAPUBK_TEST-1234567890'; // <-- INSERT your Chapa public key here.
+const CHAPA_CHECKOUT_URL = 'https://api.chapa.co/v1/hosted/pay';
 
 const formatDate = (date: string) => {
   return new Date(date).toLocaleDateString('en-US', {
@@ -37,6 +40,11 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+function generateTxRef(eventId: string) {
+  // Simple unique reference: you can enhance this as needed
+  return 'EVT-' + eventId + '-' + Date.now();
+}
+
 const PublicEvent = () => {
   const { eventId } = useParams();
   const [searchParams] = useSearchParams();
@@ -44,59 +52,35 @@ const PublicEvent = () => {
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
+  const [txRef, setTxRef] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
 
-  // Check for payment success/failure from URL params
   useEffect(() => {
-    const paymentStatus = searchParams.get('payment');
-    const txRef = searchParams.get('tx_ref');
-    
-    if (paymentStatus === 'success' && txRef) {
-      // Verify the payment
-      verifyPayment(txRef);
-    } else if (paymentStatus === 'failed') {
+    setTxRef(generateTxRef(eventId || 'unknown'));
+  }, [eventId]);
+
+  // Success/failure message via URL params
+  useEffect(() => {
+    const paymentStatus = searchParams.get('status');
+    if (paymentStatus === 'success') {
+      toast({
+        title: "Payment Successful!",
+        description: "Your tickets have been purchased successfully. You will receive a confirmation email shortly."
+      });
+    }
+    if (paymentStatus === 'failed') {
       toast({
         title: "Payment Failed",
         description: "Your payment could not be processed. Please try again.",
-        variant: "destructive",
+        variant: "destructive"
       });
     }
   }, [searchParams]);
 
-  const verifyPayment = async (txRef: string) => {
-    try {
-      const { data, error } = await supabase.functions.invoke('verify-chapa-payment', {
-        body: { tx_ref: txRef, status: 'success' }
-      });
-
-      if (error) throw error;
-
-      if (data.verified) {
-        toast({
-          title: "Payment Successful!",
-          description: "Your tickets have been purchased successfully. You will receive a confirmation email shortly.",
-        });
-        fetchEvent(); // Refresh event data
-      } else {
-        toast({
-          title: "Payment Verification Failed",
-          description: "We couldn't verify your payment. Please contact support if you were charged.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error('Error verifying payment:', error);
-      toast({
-        title: "Verification Error",
-        description: "Error verifying payment. Please contact support if you were charged.",
-        variant: "destructive",
-      });
-    }
-  };
-
   // new: for dynamic fields
   const { data: customFields = [] } = useEventCustomFields(eventId);
 
-  // Split "buyer name" into first and last, keep email/phone/quantity, plus dynamic custom fields
+  // Local state for the form
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -104,7 +88,6 @@ const PublicEvent = () => {
     buyer_phone: '',
     tickets_quantity: 1,
   });
-
   // Track dynamic field values
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
 
@@ -122,18 +105,12 @@ const PublicEvent = () => {
         .eq('id', eventId)
         .eq('is_published', true)
         .single();
-
       if (error) throw error;
-      
-      // Cast the status to the correct type
-      const eventData: Event = {
+      setEvent({
         ...data,
         status: data.status as 'Draft' | 'Active' | 'Cancelled' | 'Completed'
-      };
-      
-      setEvent(eventData);
+      });
     } catch (error) {
-      console.error('Error fetching event:', error);
       toast({
         title: "Error",
         description: "Event not found or not available for purchase.",
@@ -141,91 +118,6 @@ const PublicEvent = () => {
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handlePurchase = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!event) return;
-
-    setPurchasing(true);
-    try {
-      const totalAmount = event.price * formData.tickets_quantity;
-      const availableTickets = event.capacity - (event.tickets_sold || 0);
-      if (formData.tickets_quantity > availableTickets) {
-        throw new Error(`Only ${availableTickets} tickets available`);
-      }
-
-      // Make sure all required dynamic fields are present
-      for (const field of customFields) {
-        if (field.is_required && !customFieldValues[field.field_name]) {
-          throw new Error(`Please fill in the required field: ${field.field_label}`);
-        }
-      }
-      // Ensure first and last name for Chapa
-      if (!formData.first_name.trim() || !formData.last_name.trim()) {
-        throw new Error("Please enter your first and last name.");
-      }
-
-      // Initialize Chapa payment
-      const { data, error } = await supabase.functions.invoke('initialize-chapa-payment', {
-        body: {
-          eventId: event.id,
-          firstName: formData.first_name,
-          lastName: formData.last_name,
-          email: formData.buyer_email,
-          phone: formData.buyer_phone,
-          quantity: formData.tickets_quantity,
-          customFields: customFieldValues,
-          eventName: event.name,
-          eventDescription: event.description,
-          eventBannerImage: event.banner_image
-        }
-      });
-
-      if (error) throw error;
-
-      if (data.success) {
-        // Create Chapa HTML checkout form and auto-submit
-        const form = document.createElement('form');
-        form.method = 'POST';
-        // Update to correct Chapa endpoint!
-        form.action = 'https://api.chapa.co/v1/hosted/pay';
-        form.style.display = 'none';
-
-        // Add all Chapa payload fields as hidden inputs
-        Object.entries(data.chapaPayload).forEach(([key, value]) => {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = key;
-          input.value = typeof value === 'object' ? JSON.stringify(value) : String(value);
-          form.appendChild(input);
-        });
-
-        document.body.appendChild(form);
-
-        console.log('Submitting form to Chapa with payload:', data.chapaPayload);
-
-        form.submit();
-        document.body.removeChild(form);
-
-        toast({
-          title: "Redirecting to Payment",
-          description: "You are being redirected to Chapa for secure payment processing...",
-        });
-      } else {
-        throw new Error(data.error || 'Failed to initialize payment');
-      }
-
-    } catch (error: any) {
-      console.error('Error purchasing tickets:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to purchase tickets. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setPurchasing(false);
     }
   };
 
@@ -256,6 +148,80 @@ const PublicEvent = () => {
 
   const availableTickets = event.capacity - (event.tickets_sold || 0);
   const soldOut = availableTickets <= 0;
+  const eventPrice = event.price || 0;
+  const totalAmount = eventPrice * (formData.tickets_quantity || 1);
+
+  // Helper: map our fields to chapa fields
+  function chapaMetaFields(custom: Record<string, string>) {
+    return Object.entries(custom).map(([key, value]) => (
+      <input
+        type="hidden"
+        key={key}
+        name={`meta[${key}]`}
+        value={value}
+        readOnly
+      />
+    ));
+  }
+
+  // Chapa form fields mapping and explanation:
+  // public_key: Chapa's provided public key
+  // tx_ref: transaction reference we generate for tracking (unique per payment)
+  // amount: ticket price * quantity, in ETB
+  // currency: "ETB"
+  // email: from buyer_email
+  // first_name: from first_name
+  // last_name: from last_name
+  // phone_number: from buyer_phone
+  // title: event name
+  // description: event description
+  // return_url: current page with ?status=success or ?status=failed for redirect
+  // meta[]: any custom fields, key-value
+
+  function handleFormSubmit(e: React.FormEvent) {
+    // This form is regular HTML POST; checks before submission
+    if (!formData.first_name.trim() || !formData.last_name.trim()) {
+      e.preventDefault();
+      toast({
+        title: "Name required",
+        description: "First and last name are required.",
+        variant: "destructive"
+      });
+      return;
+    }
+    if (!formData.buyer_email.trim()) {
+      e.preventDefault();
+      toast({
+        title: "Email required",
+        description: "Email is required.",
+        variant: "destructive"
+      });
+      return;
+    }
+    if (formData.tickets_quantity > availableTickets) {
+      e.preventDefault();
+      toast({
+        title: "Too Many Tickets",
+        description: `Only ${availableTickets} tickets available`,
+        variant: "destructive"
+      });
+      return;
+    }
+    // Check required custom fields
+    for (const field of customFields) {
+      if (field.is_required && !customFieldValues[field.field_name]) {
+        e.preventDefault();
+        toast({
+          title: "Missing Field",
+          description: `Please fill in the required field: ${field.field_label}`,
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+    setPurchasing(true);
+    // Proceed with form POST (will leave page)
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 py-8 px-4">
@@ -327,12 +293,35 @@ const PublicEvent = () => {
                   <p className="text-muted-foreground">This event has reached its capacity.</p>
                 </div>
               ) : (
-                <form onSubmit={handlePurchase} className="space-y-4">
-                  {/* First name / last name for Chapa */}
+                <form
+                  ref={formRef}
+                  action={CHAPA_CHECKOUT_URL}
+                  method="POST"
+                  target="_self"
+                  className="space-y-4"
+                  onSubmit={handleFormSubmit}
+                >
+                  {/* Chapa Required Inputs as Hidden */}
+                  <input type="hidden" name="public_key" value={CHAPA_PUBLIC_KEY} />
+                  <input type="hidden" name="tx_ref" value={txRef || ''} />
+                  <input type="hidden" name="amount" value={totalAmount} />
+                  <input type="hidden" name="currency" value="ETB" />
+                  <input type="hidden" name="title" value={event.name} />
+                  <input type="hidden" name="description" value={event.description || ''} />
+                  <input
+                    type="hidden"
+                    name="return_url"
+                    value={`${window.location.origin}/event/${eventId}?status=success`}
+                  />
+                  {/* Custom meta fields */}
+                  {chapaMetaFields(customFieldValues)}
+
+                  {/* --- User-facing Inputs --- */}
                   <div>
                     <Label htmlFor="first_name">First Name *</Label>
                     <Input
                       id="first_name"
+                      name="first_name"
                       value={formData.first_name}
                       onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                       required
@@ -343,17 +332,18 @@ const PublicEvent = () => {
                     <Label htmlFor="last_name">Last Name *</Label>
                     <Input
                       id="last_name"
+                      name="last_name"
                       value={formData.last_name}
                       onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                       required
                       placeholder="Enter your last name"
                     />
                   </div>
-                  {/* Email/phone/quantity */}
                   <div>
                     <Label htmlFor="buyer_email">Email Address *</Label>
                     <Input
                       id="buyer_email"
+                      name="email"
                       type="email"
                       value={formData.buyer_email}
                       onChange={(e) => setFormData({ ...formData, buyer_email: e.target.value })}
@@ -365,6 +355,7 @@ const PublicEvent = () => {
                     <Label htmlFor="buyer_phone">Phone Number</Label>
                     <Input
                       id="buyer_phone"
+                      name="phone_number"
                       type="tel"
                       value={formData.buyer_phone}
                       onChange={(e) => setFormData({ ...formData, buyer_phone: e.target.value })}
@@ -375,15 +366,19 @@ const PublicEvent = () => {
                     <Label htmlFor="tickets_quantity">Number of Tickets *</Label>
                     <Input
                       id="tickets_quantity"
+                      name="tickets_quantity"
                       type="number"
                       min="1"
                       max={availableTickets}
                       value={formData.tickets_quantity}
-                      onChange={(e) => setFormData({ ...formData, tickets_quantity: parseInt(e.target.value) || 1 })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          tickets_quantity: parseInt(e.target.value) || 1,
+                        })}
                       required
                     />
                   </div>
-                  {/* Dynamic custom fields */}
                   <CustomFieldsForm
                     customFields={customFields}
                     fieldValues={customFieldValues}
@@ -394,11 +389,11 @@ const PublicEvent = () => {
                   <div className="bg-muted p-4 rounded-lg">
                     <div className="flex justify-between items-center mb-2">
                       <span>Tickets ({formData.tickets_quantity}x)</span>
-                      <span>{formatCurrency(event.price * formData.tickets_quantity)}</span>
+                      <span>{formatCurrency(totalAmount)}</span>
                     </div>
                     <div className="flex justify-between items-center font-bold text-lg">
                       <span>Total</span>
-                      <span>{formatCurrency(event.price * formData.tickets_quantity)}</span>
+                      <span>{formatCurrency(totalAmount)}</span>
                     </div>
                   </div>
                   <Button 
