@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Sidebar } from "@/components/navigation/Sidebar";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
@@ -89,14 +90,9 @@ const Finance = () => {
               </div>
             </div>
           )}
-          <div className="flex flex-col md:flex-row gap-6">
-            <div className="flex-1">
-              <ChapaWebhookTestTable />
-            </div>
-            <div className="flex-1">
-              <ChapaLiveVerifyTable />
-            </div>
-          </div>
+          {/* Test tables for webhook and live Chapa status */}
+          <ChapaWebhookTestTable />
+          <ChapaLiveVerifyTable />
           <FinanceDashboard />
         </main>
       </div>

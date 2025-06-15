@@ -1,23 +1,56 @@
 
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useChapaLiveAPI } from "./useChapaLiveAPI";
 
 export const ChapaLiveVerifyTable = () => {
-  const { data, isLoading, error } = useChapaLiveAPI();
+  // First, get the latest ticket_purchases (same as the local DB table)
+  const { data: purchases, isLoading: loadingDB, error: errorDB } = useQuery({
+    queryKey: ["ticket_purchases"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ticket_purchases")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data;
+    },
+  });
 
-  if (isLoading) {
-    return <Card className="mb-6"><CardHeader><CardTitle>Chapa Live Table (API JSON)</CardTitle></CardHeader>
+  // For all tx_refs, call edge function with up to 20 recent tx_refs
+  const txRefs = purchases?.map((row: any) => row.chapa_tx_ref).filter(Boolean);
+
+  const { data: verifyData, isLoading: loadingVerify, error: errorVerify } = useQuery({
+    queryKey: ["chapa-live-verify", txRefs],
+    queryFn: async () => {
+      if (!txRefs || txRefs.length === 0) return [];
+      const { data, error } = await supabase.functions.invoke("chapa-verify-table", {
+        body: { tx_refs: txRefs }
+      });
+      if (error) throw error;
+      return data?.results || [];
+    },
+    enabled: !!txRefs && txRefs.length > 0,
+  });
+
+  if (loadingDB || loadingVerify) {
+    return <Card className="mb-6"><CardHeader><CardTitle>Chapa Live Table (From Chapa API)</CardTitle></CardHeader>
       <CardContent>Loading...</CardContent></Card>;
   }
-  if (error) {
-    return <Card className="mb-6"><CardHeader><CardTitle>Chapa Live Table (API JSON)</CardTitle></CardHeader>
-      <CardContent>Error: {error.message}</CardContent></Card>;
+  if (errorDB) {
+    return <Card className="mb-6"><CardHeader><CardTitle>Chapa Live Table (From Chapa API)</CardTitle></CardHeader>
+      <CardContent>DB Error: {errorDB.message}</CardContent></Card>;
+  }
+  if (errorVerify) {
+    return <Card className="mb-6"><CardHeader><CardTitle>Chapa Live Table (From Chapa API)</CardTitle></CardHeader>
+      <CardContent>Verify Error: {errorVerify.message}</CardContent></Card>;
   }
 
   return (
     <Card className="mb-6">
-      <CardHeader><CardTitle>Chapa Live Table (API JSON)</CardTitle></CardHeader>
+      <CardHeader><CardTitle>Chapa Live Table (From Chapa API)</CardTitle></CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
@@ -29,13 +62,13 @@ export const ChapaLiveVerifyTable = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(!data || data.length === 0) && (
+            {(!verifyData || verifyData.length === 0) && (
               <TableRow>
                 <TableCell colSpan={4}>No verification results.</TableCell>
               </TableRow>
             )}
-            {data && data.map((item: any, idx: number) => (
-              <TableRow key={idx}>
+            {verifyData && verifyData.map((item: any) => (
+              <TableRow key={item.tx_ref}>
                 <TableCell>{item.tx_ref}</TableCell>
                 <TableCell>{item.chapa_status ? item.chapa_status : <span className="text-gray-400">N/A</span>}</TableCell>
                 <TableCell>

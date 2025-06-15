@@ -1,23 +1,35 @@
 
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useChapaWebhookAPI } from "./useChapaWebhookAPI";
 
 export const ChapaWebhookTestTable = () => {
-  const { data, isLoading, error } = useChapaWebhookAPI();
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["ticket_purchases"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ticket_purchases")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(20); // For demo, limit to 20
+      if (error) throw error;
+      return data;
+    },
+  });
 
   if (isLoading) {
-    return <Card className="mb-6"><CardHeader><CardTitle>Webhook Table (Local API JSON)</CardTitle></CardHeader>
+    return <Card className="mb-6"><CardHeader><CardTitle>Webhook Table (Local DB)</CardTitle></CardHeader>
       <CardContent>Loading...</CardContent></Card>;
   }
   if (error) {
-    return <Card className="mb-6"><CardHeader><CardTitle>Webhook Table (Local API JSON)</CardTitle></CardHeader>
+    return <Card className="mb-6"><CardHeader><CardTitle>Webhook Table (Local DB)</CardTitle></CardHeader>
       <CardContent>Error: {error.message}</CardContent></Card>;
   }
 
   return (
     <Card className="mb-6">
-      <CardHeader><CardTitle>Webhook Table (Local API JSON)</CardTitle></CardHeader>
+      <CardHeader><CardTitle>Webhook Table (Local DB)</CardTitle></CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
@@ -35,8 +47,8 @@ export const ChapaWebhookTestTable = () => {
                 <TableCell colSpan={5}>No purchase records found.</TableCell>
               </TableRow>
             )}
-            {data && data.map((row: any, idx: number) => (
-              <TableRow key={idx}>
+            {data && data.map((row: any) => (
+              <TableRow key={row.id}>
                 <TableCell>{row.buyer_name || <span className="text-gray-400">N/A</span>}</TableCell>
                 <TableCell>{row.chapa_tx_ref || <span className="text-gray-400">N/A</span>}</TableCell>
                 <TableCell>${Number(row.amount_paid).toLocaleString()}</TableCell>
