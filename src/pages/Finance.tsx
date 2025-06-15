@@ -5,9 +5,35 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { FinanceDashboard } from "@/components/finance/FinanceDashboard";
 import { ChapaWebhookTestTable } from "@/components/finance/ChapaWebhookTestTable";
 import { ChapaLiveVerifyTable } from "@/components/finance/ChapaLiveVerifyTable";
+import { Button } from "@/components/ui/button";
+import { useMutation } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const Finance = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [syncResults, setSyncResults] = useState<any[]>([]);
+  const [syncing, setSyncing] = useState(false);
+  const { toast } = useToast();
+
+  const { mutate: syncPayments } = useMutation({
+    mutationFn: async () => {
+      setSyncing(true);
+      setSyncResults([]);
+      const { data, error } = await supabase.functions.invoke("auto-sync-chapa-payment", {
+        body: {},
+      });
+      setSyncing(false);
+
+      if (error) {
+        toast({ title: "Sync Failed", description: error.message, variant: "destructive" });
+        return { results: [], error: error.message };
+      }
+      toast({ title: "Payment Sync Complete" });
+      setSyncResults(data?.results || []);
+      return data;
+    },
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex w-full">
@@ -22,7 +48,48 @@ const Finance = () => {
                 Analyze your revenue, manage payments, track budgets, and generate reports for your events.
               </p>
             </div>
+            <div>
+              <Button onClick={() => syncPayments()} disabled={syncing}>
+                {syncing ? "Syncing..." : "Sync Pending Payments"}
+              </Button>
+            </div>
           </div>
+          {/* Show sync results */}
+          {syncResults && syncResults.length > 0 && (
+            <div className="mb-4">
+              <div className="font-semibold mb-2">Sync Results:</div>
+              <div className="overflow-x-auto border p-2 rounded bg-white">
+                <table className="min-w-full text-xs">
+                  <thead>
+                    <tr>
+                      <th className="px-2 py-1">TX Ref</th>
+                      <th className="px-2 py-1">Update</th>
+                      <th className="px-2 py-1">Chapa Status</th>
+                      <th className="px-2 py-1">Error</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {syncResults.map((r, i) => (
+                      <tr key={i} className="border-t">
+                        <td className="px-2 py-1">{r.tx_ref}</td>
+                        <td className="px-2 py-1">
+                          {r.updated ? (
+                            <span className="text-green-500 font-semibold">COMPLETED</span>
+                          ) : (
+                            <span className="text-gray-500">-</span>
+                          )}
+                        </td>
+                        <td className="px-2 py-1">{r.chapa_status || <span className="text-gray-400">N/A</span>}</td>
+                        <td className="px-2 py-1">
+                          {r.error ? <span className="text-red-500">{r.error}</span> : "-"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
           {/* Test tables for webhook and live Chapa status */}
           <ChapaWebhookTestTable />
           <ChapaLiveVerifyTable />
