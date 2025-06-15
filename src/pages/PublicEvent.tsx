@@ -186,10 +186,11 @@ const PublicEvent = () => {
       if (error) throw error;
 
       if (data.success) {
-        // Create Chapa HTML checkout form and auto-submit - FIXED ENDPOINT
+        // Create Chapa HTML checkout form and auto-submit
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = 'https://checkout.chapa.co/'; // Fixed: removed /checkout/payment
+        // Update to correct Chapa endpoint!
+        form.action = 'https://api.chapa.co/v1/hosted/pay';
         form.style.display = 'none';
 
         // Add all Chapa payload fields as hidden inputs
@@ -202,9 +203,9 @@ const PublicEvent = () => {
         });
 
         document.body.appendChild(form);
-        
+
         console.log('Submitting form to Chapa with payload:', data.chapaPayload);
-        
+
         form.submit();
         document.body.removeChild(form);
 
