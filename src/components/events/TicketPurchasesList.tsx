@@ -5,6 +5,7 @@ import { Calendar, Mail, Phone, Ticket, CreditCard, CheckCircle, XCircle, Clock 
 import { useTicketPurchases } from '@/hooks/useTicketPurchases';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
+import type { TicketPurchase } from '@/types/event';
 
 interface TicketPurchasesListProps {
   eventId: string;
@@ -134,80 +135,88 @@ export const TicketPurchasesList = ({ eventId }: TicketPurchasesListProps) => {
 
   return (
     <div className="space-y-4">
-      {sortedPurchases.map((purchase) => (
-        <Card key={purchase.id} className="hover:shadow-md transition-shadow">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">{purchase.buyer_name}</CardTitle>
-              <div className="flex items-center gap-2">
-                {getPaymentStatusBadge(purchase.payment_status)}
-                <Badge variant="outline">
-                  {purchase.tickets_quantity} ticket{purchase.tickets_quantity > 1 ? 's' : ''}
-                </Badge>
-                <Badge variant="secondary">
-                  {formatCurrency(purchase.amount_paid)}
-                </Badge>
+      {sortedPurchases.map((rawPurchase) => {
+        // Explicit type assertion to ensure we have access to all keys
+        const purchase = rawPurchase as TicketPurchase;
+
+        return (
+          <Card key={purchase.id} className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">{purchase.buyer_name}</CardTitle>
+                <div className="flex items-center gap-2">
+                  {getPaymentStatusBadge(purchase.payment_status)}
+                  <Badge variant="outline">
+                    {purchase.tickets_quantity} ticket{purchase.tickets_quantity > 1 ? 's' : ''}
+                  </Badge>
+                  <Badge variant="secondary">
+                    {formatCurrency(purchase.amount_paid)}
+                  </Badge>
+                </div>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div className="flex items-center space-x-2">
-                <Mail className="w-4 h-4 text-blue-600" />
-                <span>{purchase.buyer_email}</span>
-              </div>
-              
-              {purchase.buyer_phone && (
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                 <div className="flex items-center space-x-2">
-                  <Phone className="w-4 h-4 text-green-600" />
-                  <span>{purchase.buyer_phone}</span>
+                  <Mail className="w-4 h-4 text-blue-600" />
+                  <span>{purchase.buyer_email}</span>
+                </div>
+                
+                {purchase.buyer_phone && (
+                  <div className="flex items-center space-x-2">
+                    <Phone className="w-4 h-4 text-green-600" />
+                    <span>{purchase.buyer_phone}</span>
+                  </div>
+                )}
+                
+                <div className="flex items-center space-x-2">
+                  <Calendar className="w-4 h-4 text-purple-600" />
+                  <span>{formatDate(purchase.purchase_date)}</span>
+                </div>
+              </div>
+
+              {/* Payment details */}
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <div className="flex items-center space-x-4">
+                    <span>Method: {purchase.payment_method.toUpperCase()}</span>
+                    {purchase.chapa_transaction_id && (
+                      <span>TX ID: {purchase.chapa_transaction_id}</span>
+                    )}
+                    {/* Use optional chaining and show if present */}
+                    {purchase.chapa_tx_ref && (
+                      <span>Ref: {purchase.chapa_tx_ref}</span>
+                    )}
+                  </div>
+                  {purchase.checked_in && (
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      Checked In
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              {/* Custom fields if any */}
+              {purchase.custom_fields && typeof purchase.custom_fields === 'object' && Object.keys(purchase.custom_fields).length > 0 && (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <h4 className="text-xs font-semibold text-muted-foreground mb-2">Additional Information:</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                    {Object.entries(purchase.custom_fields).map(([key, value]) => (
+                      <div key={key} className="flex justify-between">
+                        <span className="text-muted-foreground capitalize">{key.replace('_', ' ')}:</span>
+                        <span className="text-foreground">
+                          {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
-              
-              <div className="flex items-center space-x-2">
-                <Calendar className="w-4 h-4 text-purple-600" />
-                <span>{formatDate(purchase.purchase_date)}</span>
-              </div>
-            </div>
-
-            {/* Payment details */}
-            <div className="mt-3 pt-3 border-t border-gray-100">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <div className="flex items-center space-x-4">
-                  <span>Method: {purchase.payment_method.toUpperCase()}</span>
-                  {purchase.chapa_transaction_id && (
-                    <span>TX ID: {purchase.chapa_transaction_id}</span>
-                  )}
-                  {purchase.chapa_tx_ref && (
-                    <span>Ref: {purchase.chapa_tx_ref}</span>
-                  )}
-                </div>
-                {purchase.checked_in && (
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                    <CheckCircle className="w-3 h-3 mr-1" />
-                    Checked In
-                  </Badge>
-                )}
-              </div>
-            </div>
-
-            {/* Custom fields if any */}
-            {purchase.custom_fields && Object.keys(purchase.custom_fields).length > 0 && (
-              <div className="mt-3 pt-3 border-t border-gray-100">
-                <h4 className="text-xs font-semibold text-muted-foreground mb-2">Additional Information:</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                  {Object.entries(purchase.custom_fields).map(([key, value]) => (
-                    <div key={key} className="flex justify-between">
-                      <span className="text-muted-foreground capitalize">{key.replace('_', ' ')}:</span>
-                      <span className="text-foreground">{String(value)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      ))}
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 };
