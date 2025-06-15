@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useEventCustomFields } from '@/hooks/useEventCustomFields';
 import { CustomFieldsForm } from '@/components/events/CustomFieldsForm';
 
-const CHAPA_PUBLIC_KEY = 'CHAPUBK_TEST-1234567890'; // <-- INSERT your Chapa public key here.
+const CHAPA_PUBLIC_KEY = 'CHAPUBK_TEST-r6DRMHBCUseMCZJcj5YosaNd2OfzjYRP'; // <-- Replaced with your test key
 const CHAPA_CHECKOUT_URL = 'https://api.chapa.co/v1/hosted/pay';
 
 const formatDate = (date: string) => {
