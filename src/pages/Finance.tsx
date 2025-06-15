@@ -3,6 +3,8 @@ import { useState } from "react";
 import { Sidebar } from "@/components/navigation/Sidebar";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { FinanceDashboard } from "@/components/finance/FinanceDashboard";
+import { ChapaWebhookTestTable } from "@/components/finance/ChapaWebhookTestTable";
+import { ChapaLiveVerifyTable } from "@/components/finance/ChapaLiveVerifyTable";
 
 const Finance = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -21,6 +23,9 @@ const Finance = () => {
               </p>
             </div>
           </div>
+          {/* Test tables for webhook and live Chapa status */}
+          <ChapaWebhookTestTable />
+          <ChapaLiveVerifyTable />
           <FinanceDashboard />
         </main>
       </div>
