@@ -25,33 +25,57 @@ const TicketConfirmation = () => {
     }
     const fetchData = async () => {
       setLoading(true);
+      setErrorMsg("");
+      setPurchase(null);
+      setEvent(null);
+
+      console.log("[TicketConfirmation] Fetching ticket purchase for tx_ref:", tx_ref);
       const { data: purchaseData, error: purchaseError } = await supabase
         .from("ticket_purchases")
         .select("*")
         .eq("chapa_tx_ref", tx_ref)
         .order("created_at", { ascending: false })
         .maybeSingle();
-      if (!purchaseData || purchaseError) {
-        setErrorMsg("Ticket not found or purchase not successful.");
+
+      if (purchaseError) {
+        setErrorMsg("Error fetching your ticket purchase.");
         setLoading(false);
         return;
       }
+
+      if (!purchaseData) {
+        setErrorMsg("Ticket not found or purchase was not successful.");
+        setLoading(false);
+        return;
+      }
+
       setPurchase(purchaseData);
+
       // Fetch event details
+      console.log("[TicketConfirmation] Fetching event for event_id:", purchaseData.event_id);
       const { data: eventData, error: eventError } = await supabase
         .from("events")
         .select("*")
         .eq("id", purchaseData.event_id)
-        .single();
-      if (!eventData || eventError) {
+        .maybeSingle();
+
+      if (eventError) {
+        setErrorMsg("Error fetching event details.");
+        setLoading(false);
+        return;
+      }
+
+      if (!eventData) {
         setErrorMsg("Event not found.");
         setLoading(false);
         return;
       }
+
       setEvent({
         ...eventData,
-        status: eventData.status as Event["status"],
+        status: eventData.status as Event["status"]
       });
+
       setLoading(false);
     };
     fetchData();
@@ -77,7 +101,20 @@ const TicketConfirmation = () => {
       </div>
     );
   }
-  if (!purchase || !event) return null;
+  // Defensive! If purchase or event is still null/undefined, show nothing instead of crashing
+  if (!purchase || !event) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Card>
+          <CardContent className="p-8 text-center">
+            <h3 className="text-lg font-semibold mb-2">Ticket Not Ready</h3>
+            <p className="text-muted-foreground">Your ticket is still being prepared, or could not be found. Please refresh or try again.</p>
+            <Button className="mt-4" onClick={() => navigate("/")}>Go Home</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center py-8 px-4">
@@ -103,3 +140,4 @@ const TicketConfirmation = () => {
 };
 
 export default TicketConfirmation;
+
