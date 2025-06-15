@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useQuery } from "@tanstack/react-query";
@@ -39,15 +38,24 @@ export const RecentActivity = () => {
     .slice(0, 5);
 
   const activities = [
-    ...recentPurchases.map(purchase => ({
-      id: `purchase-${purchase.id}`,
-      type: "purchase" as const,
-      user: purchase.buyer_name,
-      action: `purchased ${purchase.tickets_quantity} ticket${purchase.tickets_quantity > 1 ? 's' : ''} for ${purchase.events?.name || 'Unknown Event'}`,
-      time: formatDistanceToNow(new Date(purchase.created_at), { addSuffix: true }),
-      amount: `$${purchase.amount_paid}`,
-      timestamp: new Date(purchase.created_at).getTime(),
-    })),
+    ...recentPurchases.map(purchase => {
+      // Fallback: Use buyer_name if present, else use first/last name, else "?"
+      let user =
+        purchase.buyer_name ||
+        ((purchase.first_name || "") + (purchase.last_name ? ` ${purchase.last_name}` : "")) ||
+        "?";
+      user = user.trim() || "?";
+
+      return {
+        id: `purchase-${purchase.id}`,
+        type: "purchase" as const,
+        user,
+        action: `purchased ${purchase.tickets_quantity} ticket${purchase.tickets_quantity > 1 ? 's' : ''} for ${purchase.events?.name || 'Unknown Event'}`,
+        time: formatDistanceToNow(new Date(purchase.created_at), { addSuffix: true }),
+        amount: `$${purchase.amount_paid}`,
+        timestamp: new Date(purchase.created_at).getTime(),
+      };
+    }),
     ...recentEvents.map(event => ({
       id: `event-${event.id}`,
       type: "event" as const,
@@ -76,7 +84,10 @@ export const RecentActivity = () => {
             <div key={activity.id} className="flex items-center space-x-4 p-4 bg-white/50 rounded-lg border border-border">
               <Avatar>
                 <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white">
-                  {activity.user.charAt(0)}
+                  {/* Safely show first character or '?' */}
+                  {activity.user && typeof activity.user === "string" && activity.user.trim().length > 0
+                    ? activity.user.trim().charAt(0).toUpperCase()
+                    : "?"}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1">
