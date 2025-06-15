@@ -43,6 +43,7 @@ export interface TicketPurchase {
   event_id: string;
   buyer_name: string;
   buyer_email: string;
+  chapa_tx_ref?: string | null;
   buyer_phone?: string | null;
   purchase_date: string;
   tickets_quantity: number;
@@ -59,6 +60,7 @@ export interface TicketPurchase {
   refunded_at?: string | null;
   created_at: string;
   updated_at: string;
+  custom_fields?: any;
 }
 
 export interface AdminUser {
