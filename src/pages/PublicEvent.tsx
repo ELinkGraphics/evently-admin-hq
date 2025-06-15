@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useNavigate } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -48,6 +47,7 @@ const PublicEvent = () => {
   const { eventId } = useParams();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
@@ -93,10 +93,9 @@ const PublicEvent = () => {
           if (error) throw error;
 
           if (data?.verified) {
-            toast({
-              title: "Payment Successful!",
-              description: "Your tickets have been purchased successfully. You will receive a confirmation email shortly."
-            });
+            // Instead of only showing a toast, redirect to the new ticket confirmation page
+            navigate(`/ticket-confirmation?tx_ref=${returnedTxRef}`, { replace: true });
+            return;
           } else {
             toast({
               title: "Payment Verification Failed",
@@ -124,7 +123,7 @@ const PublicEvent = () => {
     };
 
     handlePaymentReturn();
-  }, [searchParams, toast]);
+  }, [searchParams, toast, navigate]);
 
   const fetchEvent = async () => {
     try {

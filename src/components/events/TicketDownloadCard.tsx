@@ -1,0 +1,83 @@
+
+import { useRef } from "react";
+import { Event, TicketPurchase } from "@/types/event";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { QRCode } from "qrcode.react";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import { Button } from "@/components/ui/button";
+
+interface TicketDownloadCardProps {
+  purchase: TicketPurchase;
+  event: Event;
+}
+
+export const TicketDownloadCard = ({ purchase, event }: TicketDownloadCardProps) => {
+  const ticketRef = useRef<HTMLDivElement>(null);
+
+  const downloadPDF = async () => {
+    if (!ticketRef.current) return;
+    const canvas = await html2canvas(ticketRef.current, { scale: 2 });
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "pt",
+      format: [canvas.width, canvas.height],
+    });
+    pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+    pdf.save(`ticket-${purchase.chapa_tx_ref || purchase.id}.pdf`);
+  };
+
+  return (
+    <div className="w-full flex flex-col items-center mt-4">
+      <Card className="w-full max-w-md border-2 border-primary" ref={ticketRef}>
+        <CardContent className="p-6">
+          <div className="text-center">
+            <h2 className="text-lg font-bold text-primary">Your Ticket</h2>
+            <div className="w-full h-px bg-gradient-to-r from-transparent via-border to-transparent my-2" />
+          </div>
+          <div className="flex flex-col items-center gap-2 mb-4">
+            <span className="font-semibold">{event.name}</span>
+            <Badge variant="outline">{event.category}</Badge>
+          </div>
+          <div className="flex justify-between mb-2">
+            <span>Buyer:</span>
+            <span className="font-semibold">{purchase.buyer_name}</span>
+          </div>
+          <div className="flex justify-between mb-2">
+            <span>Date:</span>
+            <span>{new Date(event.date).toLocaleDateString()}</span>
+          </div>
+          <div className="flex justify-between mb-2">
+            <span>Tickets:</span>
+            <span>{purchase.tickets_quantity}</span>
+          </div>
+          <div className="flex justify-between mb-2">
+            <span>Transaction Ref:</span>
+            <span className="font-mono">{purchase.chapa_tx_ref || purchase.id}</span>
+          </div>
+          {/* Placeholder for seat number (if available) */}
+          <div className="flex justify-between mb-2">
+            <span>Seat Number:</span>
+            <span>-</span>
+          </div>
+          <div className="flex flex-col items-center my-4">
+            <QRCode
+              value={purchase.chapa_tx_ref || purchase.id}
+              size={96}
+              bgColor="#fff"
+              fgColor="#191D32"
+              className="border-2 border-primary rounded-lg"
+              includeMargin={true}
+            />
+            <span className="block text-xs mt-2 text-muted-foreground">
+              Show this QR code at entry
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+      <Button className="mt-4" onClick={downloadPDF}>Download Ticket (PDF)</Button>
+    </div>
+  );
+};

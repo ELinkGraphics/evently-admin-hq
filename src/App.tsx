@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,6 +11,7 @@ import Finance from "./pages/Finance";
 import Payments from "./pages/Payments";
 import PublicEvent from "./pages/PublicEvent";
 import NotFound from "./pages/NotFound";
+import TicketConfirmation from "./pages/TicketConfirmation";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +28,7 @@ const App = () => (
           <Route path="/finance" element={<Finance />} />
           <Route path="/payments" element={<Payments />} />
           <Route path="/event/:eventId" element={<PublicEvent />} />
+          <Route path="/ticket-confirmation" element={<TicketConfirmation />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
