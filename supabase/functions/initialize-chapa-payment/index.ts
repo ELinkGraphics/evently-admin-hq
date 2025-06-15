@@ -17,7 +17,7 @@ serve(async (req) => {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    );
 
     const { 
       eventId, 
@@ -30,23 +30,23 @@ serve(async (req) => {
       eventName,
       eventDescription,
       eventBannerImage 
-    } = await req.json()
+    } = await req.json();
 
-    console.log('Initializing Chapa payment for:', { eventId, firstName, lastName, email, quantity })
+    console.log('Initializing Chapa payment for:', { eventId, firstName, lastName, email, quantity });
 
     // Get event details
     const { data: event, error: eventError } = await supabase
       .from('events')
       .select('*')
       .eq('id', eventId)
-      .single()
+      .single();
 
     if (eventError || !event) {
-      throw new Error('Event not found')
+      throw new Error('Event not found');
     }
 
-    const totalAmount = event.price * quantity
-    const chapaTxRef = `event_${eventId}_${Date.now()}`
+    const totalAmount = event.price * quantity;
+    const chapaTxRef = `event_${eventId}_${Date.now()}`;
 
     // Create pending purchase record
     const { data: purchase, error: purchaseError } = await supabase
@@ -64,18 +64,19 @@ serve(async (req) => {
         payment_status: 'pending'
       }])
       .select()
-      .single()
+      .single();
 
     if (purchaseError) {
-      throw new Error('Failed to create purchase record')
+      throw new Error('Failed to create purchase record');
     }
 
     // Initialize Chapa payment
-    const chapaPublicKey = Deno.env.get('CHAPA_PUBLIC_KEY')
+    const chapaPublicKey = Deno.env.get('CHAPA_PUBLIC_KEY');
     if (!chapaPublicKey) {
-      throw new Error('Chapa public key not configured')
+      throw new Error('Chapa public key not configured');
     }
 
+    // Prepare only flatten valid fields, no array/object in meta!
     const chapaPayload = {
       public_key: chapaPublicKey,
       tx_ref: chapaTxRef,
@@ -90,12 +91,10 @@ serve(async (req) => {
       logo: eventBannerImage || event.banner_image,
       callback_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/verify-chapa-payment`,
       return_url: `${req.headers.get('origin')}/event/${eventId}?payment=success&tx_ref=${chapaTxRef}`,
-      // Flatten meta data instead of nesting
-      'meta[event_id]': eventId,
-      'meta[purchase_id]': purchase.id
-    }
+    };
+    // (No meta field! Chapa will error on array/object there.)
 
-    console.log('Chapa payload prepared:', chapaPayload)
+    console.log('Chapa payload prepared:', chapaPayload);
 
     return new Response(
       JSON.stringify({
@@ -107,10 +106,10 @@ serve(async (req) => {
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
-    )
+    );
 
   } catch (error) {
-    console.error('Error initializing Chapa payment:', error)
+    console.error('Error initializing Chapa payment:', error);
     return new Response(
       JSON.stringify({ 
         success: false, 
@@ -120,6 +119,7 @@ serve(async (req) => {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
-    )
+    );
   }
-})
+});
+
