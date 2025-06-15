@@ -176,10 +176,11 @@ export const TicketPurchasesList = ({ eventId }: TicketPurchasesListProps) => {
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <div className="flex items-center space-x-4">
                   <span>Method: {purchase.payment_method.toUpperCase()}</span>
+                  {/* Guard against possibly undefined chapa_tx_ref */}
                   {purchase.chapa_transaction_id && (
                     <span>TX ID: {purchase.chapa_transaction_id}</span>
                   )}
-                  {purchase.chapa_tx_ref && (
+                  {('chapa_tx_ref' in purchase) && purchase.chapa_tx_ref && (
                     <span>Ref: {purchase.chapa_tx_ref}</span>
                   )}
                 </div>
@@ -192,8 +193,8 @@ export const TicketPurchasesList = ({ eventId }: TicketPurchasesListProps) => {
               </div>
             </div>
 
-            {/* Custom fields if any */}
-            {purchase.custom_fields && Object.keys(purchase.custom_fields).length > 0 && (
+            {/* Custom fields if any (guard for undefined/null) */}
+            {('custom_fields' in purchase) && purchase.custom_fields && Object.keys(purchase.custom_fields).length > 0 && (
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <h4 className="text-xs font-semibold text-muted-foreground mb-2">Additional Information:</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
@@ -212,3 +213,4 @@ export const TicketPurchasesList = ({ eventId }: TicketPurchasesListProps) => {
     </div>
   );
 };
+
