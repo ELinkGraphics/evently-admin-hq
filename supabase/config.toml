@@ -1,1 +1,4 @@
 project_id = "oqxtwyvkcyzqusjurpcs"
+
+[functions.chapa-webhook]
+verify_jwt = false
