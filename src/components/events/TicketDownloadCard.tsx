@@ -3,7 +3,6 @@ import { useRef } from "react";
 import { Event, TicketPurchase } from "@/types/event";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { QRCodeCanvas } from "qrcode.react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { Button } from "@/components/ui/button";
@@ -11,17 +10,16 @@ import { Button } from "@/components/ui/button";
 interface TicketDownloadCardProps {
   purchase: TicketPurchase;
   event: Event;
-  showQR?: boolean;
 }
 
-export const TicketDownloadCard = ({ purchase, event, showQR = true }: TicketDownloadCardProps) => {
+export const TicketDownloadCard = ({ purchase, event }: TicketDownloadCardProps) => {
   const ticketRef = useRef<HTMLDivElement>(null);
 
   const downloadPDF = async () => {
     if (!ticketRef.current) return;
     try {
       await new Promise(resolve => setTimeout(resolve, 100));
-      const canvas = await html2canvas(ticketRef.current, { 
+      const canvas = await html2canvas(ticketRef.current, {
         scale: 2,
         useCORS: true,
         allowTaint: false,
@@ -50,8 +48,6 @@ export const TicketDownloadCard = ({ purchase, event, showQR = true }: TicketDow
       return "Date unavailable";
     }
   };
-
-  const qrValue = purchase.chapa_tx_ref || purchase.id || "no-ref";
 
   return (
     <div className="w-full flex flex-col items-center mt-4">
@@ -85,22 +81,6 @@ export const TicketDownloadCard = ({ purchase, event, showQR = true }: TicketDow
             <span>Seat Number:</span>
             <span>-</span>
           </div>
-          {showQR && (
-            <div className="flex flex-col items-center my-4">
-              <div className="p-2 bg-white rounded-lg border">
-                <QRCodeCanvas
-                  value={qrValue}
-                  size={96}
-                  bgColor="#ffffff"
-                  fgColor="#191D32"
-                  includeMargin={true}
-                />
-              </div>
-              <span className="block text-xs mt-2 text-muted-foreground">
-                Show this QR code at entry
-              </span>
-            </div>
-          )}
         </CardContent>
       </Card>
       <Button className="mt-4" onClick={downloadPDF}>Download Ticket (PDF)</Button>
