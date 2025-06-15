@@ -7,6 +7,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import type { TicketPurchase } from '@/types/event';
 
+// Type guard for runtime safety in case of type mismatches
+function hasChapaTxRef(obj: any): obj is { chapa_tx_ref: string } {
+  return typeof obj?.chapa_tx_ref === 'string' && obj.chapa_tx_ref.length > 0;
+}
+function hasCustomFields(obj: any): obj is { custom_fields: object } {
+  return obj && typeof obj.custom_fields === 'object' && obj.custom_fields !== null && Object.keys(obj.custom_fields).length > 0;
+}
+
 interface TicketPurchasesListProps {
   eventId: string;
 }
@@ -135,9 +143,8 @@ export const TicketPurchasesList = ({ eventId }: TicketPurchasesListProps) => {
 
   return (
     <div className="space-y-4">
-      {sortedPurchases.map((rawPurchase) => {
-        // Explicit type assertion to ensure we have access to all keys
-        const purchase = rawPurchase as TicketPurchase;
+      {sortedPurchases.map((purchase: any) => {
+        // TypeScript: purchase is likely object, enforce run-time guards
 
         return (
           <Card key={purchase.id} className="hover:shadow-md transition-shadow">
@@ -179,12 +186,12 @@ export const TicketPurchasesList = ({ eventId }: TicketPurchasesListProps) => {
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <div className="flex items-center space-x-4">
-                    <span>Method: {purchase.payment_method.toUpperCase()}</span>
+                    <span>Method: {purchase.payment_method?.toUpperCase()}</span>
                     {purchase.chapa_transaction_id && (
                       <span>TX ID: {purchase.chapa_transaction_id}</span>
                     )}
-                    {/* Use optional chaining and show if present */}
-                    {purchase.chapa_tx_ref && (
+                    {/* Type-safe check for chapa_tx_ref */}
+                    {hasChapaTxRef(purchase) && (
                       <span>Ref: {purchase.chapa_tx_ref}</span>
                     )}
                   </div>
@@ -197,8 +204,8 @@ export const TicketPurchasesList = ({ eventId }: TicketPurchasesListProps) => {
                 </div>
               </div>
 
-              {/* Custom fields if any */}
-              {purchase.custom_fields && typeof purchase.custom_fields === 'object' && Object.keys(purchase.custom_fields).length > 0 && (
+              {/* Custom fields if any, with type-safe guard */}
+              {hasCustomFields(purchase) && (
                 <div className="mt-3 pt-3 border-t border-gray-100">
                   <h4 className="text-xs font-semibold text-muted-foreground mb-2">Additional Information:</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
