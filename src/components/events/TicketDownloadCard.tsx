@@ -3,7 +3,7 @@ import { useRef } from "react";
 import { Event, TicketPurchase } from "@/types/event";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { QRCodeSVG } from "qrcode.react";
+import { QRCodeCanvas } from "qrcode.react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { Button } from "@/components/ui/button";
@@ -102,7 +102,7 @@ export const TicketDownloadCard = ({ purchase, event }: TicketDownloadCardProps)
           </div>
           <div className="flex flex-col items-center my-4">
             <div className="p-2 bg-white rounded-lg border">
-              <QRCodeSVG
+              <QRCodeCanvas
                 value={qrValue}
                 size={96}
                 bgColor="#ffffff"
