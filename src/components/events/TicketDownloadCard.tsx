@@ -13,17 +13,29 @@ interface TicketDownloadCardProps {
   event: Event;
 }
 
-// Defensive component
+// Extra defensive guards for component props!
 export const TicketDownloadCard = ({ purchase, event }: TicketDownloadCardProps) => {
   const ticketRef = useRef<HTMLDivElement>(null);
 
-  // Defensive guards
-  if (!purchase || !event) {
+  // Defensive guards with logging
+  if (
+    !purchase ||
+    !event ||
+    typeof purchase !== "object" ||
+    typeof event !== "object" ||
+    typeof purchase.id !== "string" ||
+    typeof purchase.buyer_name !== "string" ||
+    !purchase.id ||
+    !purchase.buyer_name ||
+    typeof event.name !== "string" ||
+    !event.name
+  ) {
+    console.error("[TicketDownloadCard] Invalid/missing data", { purchase, event });
     return (
       <Card className="w-full max-w-md border-2 border-destructive">
         <CardContent className="p-6 text-destructive text-center">
           <h2 className="text-lg font-bold">Unable to display ticket</h2>
-          <p>Missing ticket or event info. Please try again or contact support.</p>
+          <p>Missing or invalid ticket/event info. Please try again or contact support.</p>
         </CardContent>
       </Card>
     );

@@ -1,4 +1,3 @@
-
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -70,6 +69,7 @@ const TicketConfirmation = () => {
     fetchData();
   }, [searchParams]);
 
+  // Strong null/undefined guard with logging for all loading/error states
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
@@ -92,35 +92,30 @@ const TicketConfirmation = () => {
     );
   }
 
-  // If purchase or event is missing, show user-friendly error and log for debugging
-  if (!purchase || !event) {
-    console.log("[TicketConfirmation] Defensive null guard", { purchase, event });
+  // Defensive: check if purchase and event are both objects with required string fields
+  if (
+    !purchase ||
+    !event ||
+    typeof purchase !== "object" ||
+    typeof event !== "object" ||
+    typeof purchase.id !== "string" ||
+    typeof purchase.buyer_name !== "string" ||
+    typeof event.name !== "string" ||
+    typeof event.date === "undefined" ||
+    !purchase.id ||
+    !purchase.buyer_name ||
+    !event.name
+  ) {
+    console.error("[TicketConfirmation] Defensive guard failed. Values:", { purchase, event });
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card>
           <CardContent className="p-8 text-center">
             <h3 className="text-lg font-semibold mb-2">Ticket Not Ready</h3>
             <p className="text-muted-foreground">
-              Your ticket is still being prepared, or could not be found.<br />
-              Please verify your transaction and try again.
-            </p>
-            <Button className="mt-4" onClick={() => navigate("/")}>Go Home</Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Defensive: check required fields for TicketDownloadCard
-  if (!purchase.id || !purchase.buyer_name || !event.name || !event.date) {
-    console.log("[TicketConfirmation] Missing required ticket/event fields", { purchase, event });
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card>
-          <CardContent className="p-8 text-center">
-            <h3 className="text-lg font-semibold mb-2">Incomplete Ticket Details</h3>
-            <p className="text-muted-foreground">
-              Some required ticket or event data is missing. Please contact support.
+              We could not find a valid ticket for your reference number.<br />
+              Possible causes: payment not completed, info delay, or data error.<br />
+              Please contact event support if this persists.
             </p>
             <Button className="mt-4" onClick={() => navigate("/")}>Go Home</Button>
           </CardContent>
