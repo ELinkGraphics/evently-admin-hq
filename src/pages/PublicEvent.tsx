@@ -75,56 +75,6 @@ const PublicEvent = () => {
     }
   }, [eventId]);
 
-  // Handle payment verification on return from Chapa
-  useEffect(() => {
-    const handlePaymentReturn = async () => {
-      const status = searchParams.get('status');
-      const returnedTxRef = searchParams.get('tx_ref');
-      
-      if (status === 'success' && returnedTxRef) {
-        setVerifying(true);
-        try {
-          console.log('[PublicEvent] Payment success detected, verifying:', returnedTxRef);
-          
-          const { data, error } = await supabase.functions.invoke('verify-chapa-payment', {
-            body: { tx_ref: returnedTxRef, status: 'success' }
-          });
-
-          if (error) throw error;
-
-          if (data?.verified) {
-            // Instead of only showing a toast, redirect to the new ticket confirmation page
-            navigate(`/ticket-confirmation?tx_ref=${returnedTxRef}`, { replace: true });
-            return;
-          } else {
-            toast({
-              title: "Payment Verification Failed",
-              description: "We couldn't verify your payment. Please contact support if money was deducted.",
-              variant: "destructive"
-            });
-          }
-        } catch (error) {
-          console.error('[PublicEvent] Payment verification failed:', error);
-          toast({
-            title: "Verification Error",
-            description: "There was an error verifying your payment. Please contact support.",
-            variant: "destructive"
-          });
-        } finally {
-          setVerifying(false);
-        }
-      } else if (status === 'failed') {
-        toast({
-          title: "Payment Failed",
-          description: "Your payment could not be processed. Please try again.",
-          variant: "destructive"
-        });
-      }
-    };
-
-    handlePaymentReturn();
-  }, [searchParams, toast, navigate]);
-
   const fetchEvent = async () => {
     try {
       const { data, error } = await supabase
@@ -254,7 +204,8 @@ const PublicEvent = () => {
         phone_number: formData.buyer_phone,
         title: event!.name,
         description: event!.description || '',
-        return_url: `${window.location.origin}/event/${eventId}?status=success&tx_ref=${txRef}`,
+        // Redirect to /ticket-confirmation?tx_ref=... which is the confirmation page
+        return_url: `${window.location.origin}/ticket-confirmation?tx_ref=${txRef}`,
         // Add custom fields as meta
         ...Object.fromEntries(
           Object.entries(customFieldValues).map(([key, value]) => [`meta[${key}]`, value])
