@@ -1,5 +1,11 @@
 
-import { HomeIcon, Calendar, Users } from "lucide-react";
+import {
+  HomeIcon,
+  CalendarIcon,
+  UsersIcon,
+  DollarSignIcon,
+  CreditCardIcon,
+} from "lucide-react";
 
 export const navItems = [
   {
@@ -10,11 +16,21 @@ export const navItems = [
   {
     title: "Events",
     to: "/events",
-    icon: <Calendar className="h-4 w-4" />,
+    icon: <CalendarIcon className="h-4 w-4" />,
   },
   {
     title: "Attendees",
     to: "/attendees",
-    icon: <Users className="h-4 w-4" />,
+    icon: <UsersIcon className="h-4 w-4" />,
+  },
+  {
+    title: "Finance",
+    to: "/finance",
+    icon: <DollarSignIcon className="h-4 w-4" />,
+  },
+  {
+    title: "Payments",
+    to: "/payments",
+    icon: <CreditCardIcon className="h-4 w-4" />,
   },
 ];

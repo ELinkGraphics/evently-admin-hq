@@ -1,8 +1,11 @@
 
+import { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Mail, Phone, Ticket } from 'lucide-react';
+import { Calendar, Mail, Phone, Ticket, CreditCard, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { useTicketPurchases } from '@/hooks/useTicketPurchases';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface TicketPurchasesListProps {
   eventId: string;
@@ -25,8 +28,77 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+const getPaymentStatusBadge = (status: string) => {
+  switch (status) {
+    case 'completed':
+      return (
+        <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+          <CheckCircle className="w-3 h-3 mr-1" />
+          Completed
+        </Badge>
+      );
+    case 'pending':
+      return (
+        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-200">
+          <Clock className="w-3 h-3 mr-1" />
+          Pending
+        </Badge>
+      );
+    case 'failed':
+      return (
+        <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-200">
+          <XCircle className="w-3 h-3 mr-1" />
+          Failed
+        </Badge>
+      );
+    case 'refunded':
+      return (
+        <Badge variant="outline" className="bg-gray-100 text-gray-800 border-gray-200">
+          <CreditCard className="w-3 h-3 mr-1" />
+          Refunded
+        </Badge>
+      );
+    default:
+      return (
+        <Badge variant="outline">
+          {status}
+        </Badge>
+      );
+  }
+};
+
 export const TicketPurchasesList = ({ eventId }: TicketPurchasesListProps) => {
   const { purchases, isLoading } = useTicketPurchases(eventId);
+  const queryClient = useQueryClient();
+
+  // Set up real-time subscription for ticket purchases
+  useEffect(() => {
+    console.log('[TicketPurchasesList] Setting up real-time subscription for event:', eventId);
+    
+    const channel = supabase
+      .channel('ticket-purchases-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'ticket_purchases',
+          filter: `event_id=eq.${eventId}`,
+        },
+        (payload) => {
+          console.log('[TicketPurchasesList] Real-time update received:', payload);
+          // Invalidate the query to refetch data
+          queryClient.invalidateQueries({ queryKey: ['ticket_purchases', eventId] });
+          queryClient.invalidateQueries({ queryKey: ['events'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('[TicketPurchasesList] Cleaning up real-time subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [eventId, queryClient]);
 
   if (isLoading) {
     return (
@@ -56,14 +128,20 @@ export const TicketPurchasesList = ({ eventId }: TicketPurchasesListProps) => {
     );
   }
 
+  // Sort purchases by creation date (newest first)
+  const sortedPurchases = [...purchases].sort((a, b) => 
+    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
   return (
     <div className="space-y-4">
-      {purchases.map((purchase) => (
-        <Card key={purchase.id}>
+      {sortedPurchases.map((purchase) => (
+        <Card key={purchase.id} className="hover:shadow-md transition-shadow">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg">{purchase.buyer_name}</CardTitle>
               <div className="flex items-center gap-2">
+                {getPaymentStatusBadge(purchase.payment_status)}
                 <Badge variant="outline">
                   {purchase.tickets_quantity} ticket{purchase.tickets_quantity > 1 ? 's' : ''}
                 </Badge>
@@ -92,6 +170,42 @@ export const TicketPurchasesList = ({ eventId }: TicketPurchasesListProps) => {
                 <span>{formatDate(purchase.purchase_date)}</span>
               </div>
             </div>
+
+            {/* Payment details */}
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <div className="flex items-center space-x-4">
+                  <span>Method: {purchase.payment_method.toUpperCase()}</span>
+                  {purchase.chapa_transaction_id && (
+                    <span>TX ID: {purchase.chapa_transaction_id}</span>
+                  )}
+                  {purchase.chapa_tx_ref && (
+                    <span>Ref: {purchase.chapa_tx_ref}</span>
+                  )}
+                </div>
+                {purchase.checked_in && (
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                    <CheckCircle className="w-3 h-3 mr-1" />
+                    Checked In
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            {/* Custom fields if any */}
+            {purchase.custom_fields && Object.keys(purchase.custom_fields).length > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <h4 className="text-xs font-semibold text-muted-foreground mb-2">Additional Information:</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                  {Object.entries(purchase.custom_fields).map(([key, value]) => (
+                    <div key={key} className="flex justify-between">
+                      <span className="text-muted-foreground capitalize">{key.replace('_', ' ')}:</span>
+                      <span className="text-foreground">{String(value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       ))}
