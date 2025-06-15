@@ -3,7 +3,6 @@ import { useRef } from "react";
 import { Event, TicketPurchase } from "@/types/event";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { QRCode } from "qrcode.react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { Button } from "@/components/ui/button";
@@ -42,7 +41,7 @@ export const TicketDownloadCard = ({ purchase, event }: TicketDownloadCardProps)
     }
   };
 
-  const qrValue = purchase.chapa_tx_ref || purchase.id || "no-ref";
+  // Removed QR code
 
   return (
     <div className="w-full flex flex-col items-center mt-4">
@@ -76,22 +75,11 @@ export const TicketDownloadCard = ({ purchase, event }: TicketDownloadCardProps)
             <span>Seat Number:</span>
             <span>-</span>
           </div>
-          <div className="flex flex-col items-center my-4">
-            <QRCode
-              value={qrValue}
-              size={96}
-              bgColor="#ffffff"
-              fgColor="#191D32"
-              className="border-2 border-primary rounded-lg"
-              includeMargin={true}
-            />
-            <span className="block text-xs mt-2 text-muted-foreground">
-              Show this QR code at entry
-            </span>
-          </div>
+          {/* QR code removed */}
         </CardContent>
       </Card>
       <Button className="mt-4" onClick={downloadPDF}>Download Ticket (PDF)</Button>
     </div>
   );
 };
+
