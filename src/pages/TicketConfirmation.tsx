@@ -127,7 +127,7 @@ const TicketConfirmation = () => {
               </div>
               <div>
                 {/* Remove QR from confirmation page */}
-                <TicketDownloadCard purchase={purchase} event={event} showQR={false} />
+                <TicketDownloadCard purchase={purchase} event={event} />
               </div>
             </div>
           </CardContent>
