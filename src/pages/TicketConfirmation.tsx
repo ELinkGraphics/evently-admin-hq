@@ -16,7 +16,6 @@ const TicketConfirmation = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Obtain tx_ref from URL
     const tx_ref = searchParams.get("tx_ref");
     if (!tx_ref) {
       setErrorMsg("Missing transaction reference.");
@@ -30,6 +29,8 @@ const TicketConfirmation = () => {
       setEvent(null);
 
       console.log("[TicketConfirmation] Fetching ticket purchase for tx_ref:", tx_ref);
+
+      // fetch purchase with matching chapa_tx_ref
       const { data: purchaseData, error: purchaseError } = await supabase
         .from("ticket_purchases")
         .select("*")
@@ -37,21 +38,19 @@ const TicketConfirmation = () => {
         .order("created_at", { ascending: false })
         .maybeSingle();
 
-      if (purchaseError) {
-        setErrorMsg("Error fetching your ticket purchase.");
-        setLoading(false);
-        return;
-      }
-
-      if (!purchaseData) {
+      if (purchaseError || !purchaseData) {
         setErrorMsg("Ticket not found or purchase was not successful.");
         setLoading(false);
         return;
       }
-
       setPurchase(purchaseData);
 
-      // Fetch event details
+      // Fetch associated event
+      if (!purchaseData.event_id) {
+        setErrorMsg("Could not find an event for this ticket.");
+        setLoading(false);
+        return;
+      }
       console.log("[TicketConfirmation] Fetching event for event_id:", purchaseData.event_id);
       const { data: eventData, error: eventError } = await supabase
         .from("events")
@@ -59,25 +58,15 @@ const TicketConfirmation = () => {
         .eq("id", purchaseData.event_id)
         .maybeSingle();
 
-      if (eventError) {
-        setErrorMsg("Error fetching event details.");
+      if (eventError || !eventData) {
+        setErrorMsg("Event not found for this ticket.");
         setLoading(false);
         return;
       }
-
-      if (!eventData) {
-        setErrorMsg("Event not found.");
-        setLoading(false);
-        return;
-      }
-
-      setEvent({
-        ...eventData,
-        status: eventData.status as Event["status"]
-      });
-
+      setEvent({ ...eventData, status: eventData.status as Event["status"] });
       setLoading(false);
     };
+
     fetchData();
   }, [searchParams]);
 
@@ -88,6 +77,7 @@ const TicketConfirmation = () => {
       </div>
     );
   }
+
   if (errorMsg) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -101,14 +91,37 @@ const TicketConfirmation = () => {
       </div>
     );
   }
-  // Defensive! If purchase or event is still null/undefined, show nothing instead of crashing
+
+  // If purchase or event is missing, show user-friendly error and log for debugging
   if (!purchase || !event) {
+    console.log("[TicketConfirmation] Defensive null guard", { purchase, event });
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card>
           <CardContent className="p-8 text-center">
             <h3 className="text-lg font-semibold mb-2">Ticket Not Ready</h3>
-            <p className="text-muted-foreground">Your ticket is still being prepared, or could not be found. Please refresh or try again.</p>
+            <p className="text-muted-foreground">
+              Your ticket is still being prepared, or could not be found.<br />
+              Please verify your transaction and try again.
+            </p>
+            <Button className="mt-4" onClick={() => navigate("/")}>Go Home</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Defensive: check required fields for TicketDownloadCard
+  if (!purchase.id || !purchase.buyer_name || !event.name || !event.date) {
+    console.log("[TicketConfirmation] Missing required ticket/event fields", { purchase, event });
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Card>
+          <CardContent className="p-8 text-center">
+            <h3 className="text-lg font-semibold mb-2">Incomplete Ticket Details</h3>
+            <p className="text-muted-foreground">
+              Some required ticket or event data is missing. Please contact support.
+            </p>
             <Button className="mt-4" onClick={() => navigate("/")}>Go Home</Button>
           </CardContent>
         </Card>
@@ -140,4 +153,3 @@ const TicketConfirmation = () => {
 };
 
 export default TicketConfirmation;
-

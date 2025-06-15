@@ -13,8 +13,21 @@ interface TicketDownloadCardProps {
   event: Event;
 }
 
+// Defensive component
 export const TicketDownloadCard = ({ purchase, event }: TicketDownloadCardProps) => {
   const ticketRef = useRef<HTMLDivElement>(null);
+
+  // Defensive guards
+  if (!purchase || !event) {
+    return (
+      <Card className="w-full max-w-md border-2 border-destructive">
+        <CardContent className="p-6 text-destructive text-center">
+          <h2 className="text-lg font-bold">Unable to display ticket</h2>
+          <p>Missing ticket or event info. Please try again or contact support.</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const downloadPDF = async () => {
     if (!ticketRef.current) return;
@@ -38,39 +51,42 @@ export const TicketDownloadCard = ({ purchase, event }: TicketDownloadCardProps)
             <div className="w-full h-px bg-gradient-to-r from-transparent via-border to-transparent my-2" />
           </div>
           <div className="flex flex-col items-center gap-2 mb-4">
-            <span className="font-semibold">{event.name}</span>
-            <Badge variant="outline">{event.category}</Badge>
+            <span className="font-semibold">{event.name || "Event"}</span>
+            <Badge variant="outline">{event.category || "Category"}</Badge>
           </div>
           <div className="flex justify-between mb-2">
             <span>Buyer:</span>
-            <span className="font-semibold">{purchase.buyer_name}</span>
+            <span className="font-semibold">{purchase.buyer_name || "N/A"}</span>
           </div>
           <div className="flex justify-between mb-2">
             <span>Date:</span>
-            <span>{new Date(event.date).toLocaleDateString()}</span>
+            <span>{event.date ? new Date(event.date).toLocaleDateString() : "N/A"}</span>
           </div>
           <div className="flex justify-between mb-2">
             <span>Tickets:</span>
-            <span>{purchase.tickets_quantity}</span>
+            <span>{purchase.tickets_quantity ?? "N/A"}</span>
           </div>
           <div className="flex justify-between mb-2">
             <span>Transaction Ref:</span>
-            <span className="font-mono">{purchase.chapa_tx_ref || purchase.id}</span>
+            <span className="font-mono">{purchase.chapa_tx_ref || purchase.id || "N/A"}</span>
           </div>
-          {/* Placeholder for seat number (if available) */}
           <div className="flex justify-between mb-2">
             <span>Seat Number:</span>
             <span>-</span>
           </div>
           <div className="flex flex-col items-center my-4">
-            <QRCode
-              value={purchase.chapa_tx_ref || purchase.id}
-              size={96}
-              bgColor="#fff"
-              fgColor="#191D32"
-              className="border-2 border-primary rounded-lg"
-              includeMargin={true}
-            />
+            {purchase.chapa_tx_ref || purchase.id ? (
+              <QRCode
+                value={purchase.chapa_tx_ref || purchase.id}
+                size={96}
+                bgColor="#fff"
+                fgColor="#191D32"
+                className="border-2 border-primary rounded-lg"
+                includeMargin={true}
+              />
+            ) : (
+              <span className="text-xs text-destructive">No QR Code Data</span>
+            )}
             <span className="block text-xs mt-2 text-muted-foreground">
               Show this QR code at entry
             </span>
