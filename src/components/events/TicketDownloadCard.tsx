@@ -13,46 +13,36 @@ interface TicketDownloadCardProps {
   event: Event;
 }
 
-// Extra defensive guards for component props!
 export const TicketDownloadCard = ({ purchase, event }: TicketDownloadCardProps) => {
   const ticketRef = useRef<HTMLDivElement>(null);
 
-  // Defensive guards with logging
-  if (
-    !purchase ||
-    !event ||
-    typeof purchase !== "object" ||
-    typeof event !== "object" ||
-    typeof purchase.id !== "string" ||
-    typeof purchase.buyer_name !== "string" ||
-    !purchase.id ||
-    !purchase.buyer_name ||
-    typeof event.name !== "string" ||
-    !event.name
-  ) {
-    console.error("[TicketDownloadCard] Invalid/missing data", { purchase, event });
-    return (
-      <Card className="w-full max-w-md border-2 border-destructive">
-        <CardContent className="p-6 text-destructive text-center">
-          <h2 className="text-lg font-bold">Unable to display ticket</h2>
-          <p>Missing or invalid ticket/event info. Please try again or contact support.</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   const downloadPDF = async () => {
     if (!ticketRef.current) return;
-    const canvas = await html2canvas(ticketRef.current, { scale: 2 });
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "pt",
-      format: [canvas.width, canvas.height],
-    });
-    pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
-    pdf.save(`ticket-${purchase.chapa_tx_ref || purchase.id}.pdf`);
+    try {
+      const canvas = await html2canvas(ticketRef.current, { scale: 2 });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "pt",
+        format: [canvas.width, canvas.height],
+      });
+      pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+      pdf.save(`ticket-${purchase.chapa_tx_ref || purchase.id}.pdf`);
+    } catch (error) {
+      console.error("Failed to generate PDF:", error);
+    }
   };
+
+  // Safe date formatting
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString();
+    } catch {
+      return "Date unavailable";
+    }
+  };
+
+  const qrValue = purchase.chapa_tx_ref || purchase.id || "no-ref";
 
   return (
     <div className="w-full flex flex-col items-center mt-4">
@@ -72,33 +62,29 @@ export const TicketDownloadCard = ({ purchase, event }: TicketDownloadCardProps)
           </div>
           <div className="flex justify-between mb-2">
             <span>Date:</span>
-            <span>{event.date ? new Date(event.date).toLocaleDateString() : "N/A"}</span>
+            <span>{formatDate(event.date)}</span>
           </div>
           <div className="flex justify-between mb-2">
             <span>Tickets:</span>
-            <span>{purchase.tickets_quantity ?? "N/A"}</span>
+            <span>{purchase.tickets_quantity || 1}</span>
           </div>
           <div className="flex justify-between mb-2">
             <span>Transaction Ref:</span>
-            <span className="font-mono">{purchase.chapa_tx_ref || purchase.id || "N/A"}</span>
+            <span className="font-mono text-xs">{purchase.chapa_tx_ref || purchase.id || "N/A"}</span>
           </div>
           <div className="flex justify-between mb-2">
             <span>Seat Number:</span>
             <span>-</span>
           </div>
           <div className="flex flex-col items-center my-4">
-            {purchase.chapa_tx_ref || purchase.id ? (
-              <QRCode
-                value={purchase.chapa_tx_ref || purchase.id}
-                size={96}
-                bgColor="#fff"
-                fgColor="#191D32"
-                className="border-2 border-primary rounded-lg"
-                includeMargin={true}
-              />
-            ) : (
-              <span className="text-xs text-destructive">No QR Code Data</span>
-            )}
+            <QRCode
+              value={qrValue}
+              size={96}
+              bgColor="#ffffff"
+              fgColor="#191D32"
+              className="border-2 border-primary rounded-lg"
+              includeMargin={true}
+            />
             <span className="block text-xs mt-2 text-muted-foreground">
               Show this QR code at entry
             </span>

@@ -1,3 +1,4 @@
+
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -69,7 +70,6 @@ const TicketConfirmation = () => {
     fetchData();
   }, [searchParams]);
 
-  // Strong null/undefined guard with logging for all loading/error states
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
@@ -92,37 +92,27 @@ const TicketConfirmation = () => {
     );
   }
 
-  // Defensive: check if purchase and event are both objects with required string fields
-  if (
-    !purchase ||
-    !event ||
-    typeof purchase !== "object" ||
-    typeof event !== "object" ||
-    typeof purchase.id !== "string" ||
-    typeof purchase.buyer_name !== "string" ||
-    typeof event.name !== "string" ||
-    typeof event.date === "undefined" ||
-    !purchase.id ||
-    !purchase.buyer_name ||
-    !event.name
-  ) {
-    console.error("[TicketConfirmation] Defensive guard failed. Values:", { purchase, event });
+  if (!purchase || !event) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card>
           <CardContent className="p-8 text-center">
-            <h3 className="text-lg font-semibold mb-2">Ticket Not Ready</h3>
-            <p className="text-muted-foreground">
-              We could not find a valid ticket for your reference number.<br />
-              Possible causes: payment not completed, info delay, or data error.<br />
-              Please contact event support if this persists.
-            </p>
-            <Button className="mt-4" onClick={() => navigate("/")}>Go Home</Button>
+            <h3 className="text-lg font-semibold mb-2">Loading Ticket</h3>
+            <p className="text-muted-foreground">Please wait...</p>
           </CardContent>
         </Card>
       </div>
     );
   }
+
+  // Safe date formatting
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString();
+    } catch {
+      return "Date unavailable";
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center py-8 px-4">
@@ -133,8 +123,8 @@ const TicketConfirmation = () => {
               <svg className="h-10 w-10 text-green-500 mb-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"></path></svg>
               <h2 className="text-2xl font-bold mb-2">Purchase Successful</h2>
               <div className="mb-4">
-                Thank you, <span className="font-semibold">{purchase.buyer_name}</span>! Your ticket for <span className="font-semibold">{event.name}</span> on {" "}
-                <span>{new Date(event.date).toLocaleDateString()}</span> has been purchased.
+                Thank you, <span className="font-semibold">{purchase.buyer_name || "Customer"}</span>! Your ticket for <span className="font-semibold">{event.name}</span> on{" "}
+                <span>{formatDate(event.date)}</span> has been purchased.
               </div>
               <div>
                 <TicketDownloadCard purchase={purchase} event={event} />
