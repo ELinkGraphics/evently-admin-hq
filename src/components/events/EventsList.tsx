@@ -32,7 +32,7 @@ const formatCurrency = (amount: number) => {
 };
 
 export const EventsList = () => {
-  const { events, isLoading, updateEvent, deleteEvent, isUpdating, isDeleting } = useEvents();
+  const { events, isLoading, updateEvent, deleteEvent, isUpdating, isDeleting, createEvent, isCreating } = useEvents();
 
   if (isLoading) {
     return (
@@ -61,7 +61,8 @@ export const EventsList = () => {
           <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-lg font-semibold text-foreground mb-2">No events yet</h3>
           <p className="text-muted-foreground mb-6">Get started by creating your first event</p>
-          <EventFormDialog onSubmit={updateEvent} isLoading={isUpdating} />
+          {/* FIX: Only use create handler when there are no events */}
+          <EventFormDialog onSubmit={createEvent} isLoading={isCreating} />
         </CardContent>
       </Card>
     );
@@ -131,6 +132,7 @@ export const EventsList = () => {
               </div>
               
               <div className="flex items-center space-x-3">
+                {/* FIX: Only use updateEvent for editing */}
                 <EventFormDialog 
                   event={event} 
                   onSubmit={updateEvent} 
