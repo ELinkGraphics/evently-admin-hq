@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -25,9 +24,27 @@ serve(async (req) => {
     }
 
     const { tx_ref, status } = await req.json()
-    console.log('Verifying Chapa payment:', { tx_ref, status })
+    console.log('[verify-chapa] Incoming request data:', { tx_ref, status })
 
-    // Verify payment with Chapa API
+    // Double-check purchase record before verification
+    const { data: purchase, error: purchaseError } = await supabase
+      .from('ticket_purchases')
+      .select('*')
+      .eq('chapa_tx_ref', tx_ref)
+      .maybeSingle()
+
+    if (purchaseError) {
+      throw new Error('Failed to fetch ticket purchase: ' + purchaseError.message)
+    }
+    if (!purchase) {
+      console.error('[verify-chapa] No ticket purchase found for tx_ref:', tx_ref)
+      return new Response(JSON.stringify({ success: false, error: "Purchase not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Always verify with Chapa API to get the real payment status
     const verifyResponse = await fetch(`https://api.chapa.co/v1/transaction/verify/${tx_ref}`, {
       method: 'GET',
       headers: {
@@ -41,25 +58,38 @@ serve(async (req) => {
     }
 
     const verificationData = await verifyResponse.json()
-    console.log('Chapa verification response:', verificationData)
+    console.log('[verify-chapa] Chapa verification response:', verificationData)
 
-    // Update purchase record based on verification
-    if (verificationData.status === 'success' && verificationData.data.status === 'success') {
+    // If payment is verified as success, complete the ticket purchase/payment status
+    if (verificationData.status === 'success' && verificationData.data?.status === 'success') {
+      // Mark the payment as completed and store transaction and raw data
       const { error: updateError } = await supabase
         .from('ticket_purchases')
         .update({
           payment_status: 'completed',
-          chapa_transaction_id: verificationData.data.reference,
+          chapa_transaction_id: verificationData.data.reference || verificationData.data.id,
           raw_chapa_data: verificationData.data
         })
         .eq('chapa_tx_ref', tx_ref)
 
       if (updateError) {
+        console.error('[verify-chapa] Failed to update purchase as completed:', updateError)
         throw new Error('Failed to update purchase record')
       }
 
-      console.log('Payment verified and purchase updated successfully')
+      console.log('[verify-chapa] Payment verified and purchase updated to completed')
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          verified: true,
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      )
     } else {
+      // Otherwise, mark as failed and log the data
       const { error: updateError } = await supabase
         .from('ticket_purchases')
         .update({
@@ -69,22 +99,22 @@ serve(async (req) => {
         .eq('chapa_tx_ref', tx_ref)
 
       if (updateError) {
-        console.error('Failed to update failed purchase record:', updateError)
+        console.error('[verify-chapa] Failed to update failed purchase record:', updateError)
       }
+
+      return new Response(
+        JSON.stringify({
+          success: false,
+          verified: false,
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      )
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        verified: verificationData.status === 'success' && verificationData.data.status === 'success'
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    )
-
   } catch (error) {
-    console.error('Error verifying Chapa payment:', error)
+    console.error('[verify-chapa] Error verifying Chapa payment:', error)
     return new Response(
       JSON.stringify({ 
         success: false, 
