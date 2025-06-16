@@ -12,6 +12,8 @@ export const KPICards = () => {
   const { data: kpiData, isLoading, error } = useKPIData(selectedPeriod);
   const { toast } = useToast();
 
+  console.log('KPICards - Loading:', isLoading, 'Error:', error, 'Data:', kpiData);
+
   const handleCardClick = (cardType: string) => {
     toast({
       title: "Drill Down",
@@ -21,6 +23,11 @@ export const KPICards = () => {
 
   if (error) {
     console.error('Error loading KPI data:', error);
+    toast({
+      title: "Error",
+      description: "Failed to load KPI data. Please try again.",
+      variant: "destructive",
+    });
   }
 
   const kpiCards = [
@@ -79,6 +86,12 @@ export const KPICards = () => {
           />
         ))}
       </div>
+      
+      {error && (
+        <div className="text-center text-red-500 text-sm mt-4">
+          Unable to load KPI data. Please check the console for more details.
+        </div>
+      )}
     </div>
   );
 };
