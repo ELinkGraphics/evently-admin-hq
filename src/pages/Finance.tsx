@@ -1,7 +1,8 @@
+
 import { useState } from "react";
 import { Sidebar } from "@/components/navigation/Sidebar";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
-import { FinanceDashboard } from "@/components/finance/FinanceDashboard";
+import { EnhancedFinanceDashboard } from "@/components/finance/EnhancedFinanceDashboard";
 import { ChapaWebhookTestTable } from "@/components/finance/ChapaWebhookTestTable";
 import { ChapaLiveVerifyTable } from "@/components/finance/ChapaLiveVerifyTable";
 import { Button } from "@/components/ui/button";
@@ -44,7 +45,7 @@ const Finance = () => {
             <div>
               <h1 className="text-3xl font-bold text-foreground">Finance Management</h1>
               <p className="text-muted-foreground mt-1">
-                Analyze your revenue, manage payments, track budgets, and generate reports for your events.
+                Comprehensive financial management for your events including budgets, expenses, reports, and tax compliance.
               </p>
             </div>
             <div>
@@ -53,6 +54,7 @@ const Finance = () => {
               </Button>
             </div>
           </div>
+          
           {syncResults && syncResults.length > 0 && (
             <div className="mb-4">
               <div className="font-semibold mb-2">Sync Results:</div>
@@ -89,7 +91,10 @@ const Finance = () => {
             </div>
           )}
 
-          {/* Tables section: horizontally arranged on desktop, stacked on mobile */}
+          {/* Enhanced Finance Dashboard with all features */}
+          <EnhancedFinanceDashboard />
+
+          {/* Payment tracking tables */}
           <div className="flex flex-col lg:flex-row gap-6">
             <div className="flex-1 min-w-0">
               <ChapaWebhookTestTable />
@@ -98,8 +103,6 @@ const Finance = () => {
               <ChapaLiveVerifyTable />
             </div>
           </div>
-          
-          <FinanceDashboard />
         </main>
       </div>
     </div>
