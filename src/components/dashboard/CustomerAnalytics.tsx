@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useQuery } from "@tanstack/react-query";
@@ -91,13 +92,15 @@ export const CustomerAnalytics = () => {
         return sum + customerTickets;
       }, 0);
 
+      const customersCount = Number(customers.length) || 0;
+
       return {
         totalCustomers: customers.length,
         segments,
         topCustomers,
         frequencyData,
-        averageSpending: customers.length > 0 ? totalSpentSum / customers.length : 0,
-        averageTicketsPerCustomer: customers.length > 0 ? totalTicketsSum / customers.length : 0
+        averageSpending: customersCount > 0 ? totalSpentSum / customersCount : 0,
+        averageTicketsPerCustomer: customersCount > 0 ? totalTicketsSum / customersCount : 0
       };
     },
   });
