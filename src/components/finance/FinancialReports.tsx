@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useQuery } from '@tanstack/react-query';
@@ -47,13 +48,20 @@ export const FinancialReports = () => {
       
       if (expenseError) throw expenseError;
 
-      // Get budget data
-      const { data: budgets, error: budgetError } = await supabase
-        .from('event_budgets')
-        .select('*')
-        .eq('event_id', selectedEvent);
-      
-      if (budgetError) throw budgetError;
+      // Get budget data - using proper error handling for missing table
+      let budgets = [];
+      try {
+        const { data: budgetData, error: budgetError } = await supabase
+          .from('event_budgets')
+          .select('*')
+          .eq('event_id', selectedEvent);
+        
+        if (budgetError) throw budgetError;
+        budgets = budgetData || [];
+      } catch (error) {
+        console.log('Budget data not available:', error);
+        budgets = [];
+      }
 
       const totalRevenue = purchases.reduce((sum, p) => sum + Number(p.amount_paid), 0);
       const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
@@ -69,10 +77,10 @@ export const FinancialReports = () => {
       const expenseBreakdown = Object.entries(expensesByCategory).map(([category, amount]) => ({
         category: category.charAt(0).toUpperCase() + category.slice(1),
         amount: amount as number,
-        percentage: ((amount as number) / totalExpenses) * 100
+        percentage: totalExpenses > 0 ? ((amount as number) / totalExpenses) * 100 : 0
       }));
 
-      // Monthly revenue trend (if multiple events)
+      // Monthly revenue trend
       const monthlyRevenue = purchases.reduce((acc: any, purchase) => {
         const month = new Date(purchase.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
         acc[month] = (acc[month] || 0) + Number(purchase.amount_paid);
@@ -141,55 +149,57 @@ export const FinancialReports = () => {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Expense Breakdown</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={financialData.expenseBreakdown}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ category, percentage }) => `${category} (${percentage.toFixed(1)}%)`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="amount"
-                  >
-                    {financialData.expenseBreakdown.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => `ETB ${Number(value).toLocaleString()}`} />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+        {financialData.expenseBreakdown.length > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Expense Breakdown</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={financialData.expenseBreakdown}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ category, percentage }) => `${category} (${percentage.toFixed(1)}%)`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="amount"
+                    >
+                      {financialData.expenseBreakdown.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => `ETB ${Number(value).toLocaleString()}`} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Revenue vs Expenses</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={[
-                  { name: 'Revenue', amount: financialData.totalRevenue, fill: '#10B981' },
-                  { name: 'Expenses', amount: financialData.totalExpenses, fill: '#EF4444' },
-                  { name: 'Net Profit', amount: Math.max(0, financialData.netProfit), fill: '#3B82F6' }
-                ]}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip formatter={(value) => `ETB ${Number(value).toLocaleString()}`} />
-                  <Bar dataKey="amount" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Revenue vs Expenses</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={[
+                    { name: 'Revenue', amount: financialData.totalRevenue, fill: '#10B981' },
+                    { name: 'Expenses', amount: financialData.totalExpenses, fill: '#EF4444' },
+                    { name: 'Net Profit', amount: Math.max(0, financialData.netProfit), fill: '#3B82F6' }
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip formatter={(value) => `ETB ${Number(value).toLocaleString()}`} />
+                    <Bar dataKey="amount" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         <Card>
           <CardHeader>
@@ -213,7 +223,7 @@ export const FinancialReports = () => {
                 <TableRow>
                   <TableCell className="font-medium">Total Expenses</TableCell>
                   <TableCell className="text-red-600">({financialData.totalExpenses.toLocaleString()})</TableCell>
-                  <TableCell>{((financialData.totalExpenses / financialData.totalRevenue) * 100).toFixed(1)}%</TableCell>
+                  <TableCell>{financialData.totalRevenue > 0 ? ((financialData.totalExpenses / financialData.totalRevenue) * 100).toFixed(1) : 0}%</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell className="font-bold">Net Profit/Loss</TableCell>

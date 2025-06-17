@@ -131,6 +131,47 @@ export type Database = {
           },
         ]
       }
+      event_budgets: {
+        Row: {
+          budgeted_amount: number
+          category: string
+          created_at: string
+          currency: string | null
+          event_id: string
+          id: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          budgeted_amount?: number
+          category: string
+          created_at?: string
+          currency?: string | null
+          event_id: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          budgeted_amount?: number
+          category?: string
+          created_at?: string
+          currency?: string | null
+          event_id?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_budgets_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_categories: {
         Row: {
           created_at: string

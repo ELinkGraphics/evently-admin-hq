@@ -10,8 +10,22 @@ import { Progress } from '@/components/ui/progress';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Target, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Plus, Target, TrendingUp, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+
+interface BudgetItem {
+  id: string;
+  event_id: string;
+  category: string;
+  budgeted_amount: number;
+  currency: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  actualSpent: number;
+  variance: number;
+  percentageUsed: number;
+}
 
 export const BudgetManagement = () => {
   const { toast } = useToast();
@@ -19,7 +33,6 @@ export const BudgetManagement = () => {
   const [selectedEvent, setSelectedEvent] = useState<string>('');
   const [budgetCategory, setBudgetCategory] = useState('');
   const [budgetAmount, setBudgetAmount] = useState('');
-  const [isEditing, setIsEditing] = useState<string | null>(null);
 
   // Fetch events for budget selection
   const { data: events = [] } = useQuery({
@@ -34,7 +47,7 @@ export const BudgetManagement = () => {
   // Fetch budgets with actual spending
   const { data: budgets = [], isLoading } = useQuery({
     queryKey: ['budgets', selectedEvent],
-    queryFn: async () => {
+    queryFn: async (): Promise<BudgetItem[]> => {
       if (!selectedEvent) return [];
       
       // Get budget data
@@ -81,10 +94,24 @@ export const BudgetManagement = () => {
       setBudgetAmount('');
       toast({ title: "Budget added successfully" });
     },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error adding budget", 
+        description: error.message,
+        variant: "destructive" 
+      });
+    },
   });
 
   const handleAddBudget = () => {
-    if (!selectedEvent || !budgetCategory || !budgetAmount) return;
+    if (!selectedEvent || !budgetCategory || !budgetAmount) {
+      toast({
+        title: "Missing information",
+        description: "Please select an event, category, and enter a budget amount",
+        variant: "destructive"
+      });
+      return;
+    }
     
     addBudgetMutation.mutate({
       event_id: selectedEvent,
@@ -234,6 +261,12 @@ export const BudgetManagement = () => {
                 })}
               </TableBody>
             </Table>
+          )}
+
+          {selectedEvent && budgets.length === 0 && !isLoading && (
+            <div className="text-center py-8 text-muted-foreground">
+              No budgets created for this event yet. Add one above to get started.
+            </div>
           )}
         </CardContent>
       </Card>
