@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useQuery } from "@tanstack/react-query";
@@ -41,8 +40,12 @@ export const CustomerAnalytics = () => {
           };
         }
         
-        acc[email].totalSpent += Number(purchase.amount_paid);
-        acc[email].totalTickets += purchase.tickets_quantity;
+        // Ensure numeric conversion for arithmetic operations
+        const amountPaid = Number(purchase.amount_paid) || 0;
+        const ticketsQuantity = Number(purchase.tickets_quantity) || 0;
+        
+        acc[email].totalSpent += amountPaid;
+        acc[email].totalTickets += ticketsQuantity;
         acc[email].events.add(purchase.events?.name);
         acc[email].eventCount = acc[email].events.size;
         
@@ -67,7 +70,7 @@ export const CustomerAnalytics = () => {
 
       // Top customers
       const topCustomers = customers
-        .sort((a: any, b: any) => b.totalSpent - a.totalSpent)
+        .sort((a: any, b: any) => Number(b.totalSpent) - Number(a.totalSpent))
         .slice(0, 10);
 
       // Purchase frequency data
@@ -77,13 +80,17 @@ export const CustomerAnalytics = () => {
         { range: '4+ events', count: segments.loyal }
       ];
 
+      // Calculate averages with proper type conversion
+      const totalSpentSum = customers.reduce((sum: number, c: any) => sum + Number(c.totalSpent || 0), 0);
+      const totalTicketsSum = customers.reduce((sum: number, c: any) => sum + Number(c.totalTickets || 0), 0);
+
       return {
         totalCustomers: customers.length,
         segments,
         topCustomers,
         frequencyData,
-        averageSpending: customers.length > 0 ? customers.reduce((sum: number, c: any) => sum + c.totalSpent, 0) / customers.length : 0,
-        averageTicketsPerCustomer: customers.length > 0 ? customers.reduce((sum: number, c: any) => sum + c.totalTickets, 0) / customers.length : 0
+        averageSpending: customers.length > 0 ? totalSpentSum / customers.length : 0,
+        averageTicketsPerCustomer: customers.length > 0 ? totalTicketsSum / customers.length : 0
       };
     },
   });
@@ -218,7 +225,7 @@ export const CustomerAnalytics = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-green-600">${customer.totalSpent.toFixed(0)}</p>
+                  <p className="font-semibold text-green-600">${Number(customer.totalSpent || 0).toFixed(0)}</p>
                   <p className="text-xs text-muted-foreground">{customer.eventCount} events</p>
                 </div>
               </div>
