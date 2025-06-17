@@ -1,12 +1,14 @@
-
 import { useState } from "react";
 import { Sidebar } from "@/components/navigation/Sidebar";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { KPICards } from "@/components/dashboard/KPICards";
 import { SalesChart } from "@/components/dashboard/SalesChart";
-import { UpcomingEvents } from "@/components/dashboard/UpcomingEvents";
-import { RecentActivity } from "@/components/dashboard/RecentActivity";
-import { QuickActions } from "@/components/dashboard/QuickActions";
+import { EnhancedUpcomingEvents } from "@/components/dashboard/EnhancedUpcomingEvents";
+import { EnhancedRecentActivity } from "@/components/dashboard/EnhancedRecentActivity";
+import { EnhancedQuickActions } from "@/components/dashboard/EnhancedQuickActions";
+import { RevenueAnalytics } from "@/components/dashboard/RevenueAnalytics";
+import { CustomerAnalytics } from "@/components/dashboard/CustomerAnalytics";
+import { PerformanceMetrics } from "@/components/dashboard/PerformanceMetrics";
 
 const Index = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -24,17 +26,25 @@ const Index = () => {
               <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
               <p className="text-muted-foreground mt-1">Welcome back! Here's what's happening with your events.</p>
             </div>
-            <QuickActions />
+            <EnhancedQuickActions />
           </div>
 
           <KPICards />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <SalesChart />
-            <UpcomingEvents />
+            <EnhancedUpcomingEvents />
           </div>
 
-          <RecentActivity />
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <RevenueAnalytics />
+            <CustomerAnalytics />
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <PerformanceMetrics />
+            <EnhancedRecentActivity />
+          </div>
         </main>
       </div>
     </div>
