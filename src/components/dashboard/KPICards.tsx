@@ -8,11 +8,11 @@ import { EnhancedKPICard } from "./EnhancedKPICard";
 import { useToast } from "@/hooks/use-toast";
 
 export const KPICards = () => {
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('month');
-  const { data: kpiData, isLoading, error } = useKPIData(selectedPeriod);
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('week');
+  const { data: kpiData, isLoading, error, isSuccess } = useKPIData(selectedPeriod);
   const { toast } = useToast();
 
-  console.log('KPICards - Loading:', isLoading, 'Error:', error, 'Data:', kpiData);
+  console.log('KPICards - Loading:', isLoading, 'Error:', error, 'Data:', kpiData, 'Success:', isSuccess);
 
   const handleCardClick = (cardType: string) => {
     toast({
@@ -75,12 +75,12 @@ export const KPICards = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         {kpiCards.map((kpi, index) => (
           <EnhancedKPICard
-            key={index}
+            key={`${selectedPeriod}-${index}`}
             title={kpi.title}
             data={kpi.data}
             icon={kpi.icon}
             format={kpi.format}
-            isLoading={isLoading}
+            isLoading={isLoading && !isSuccess}
             onClick={kpi.onClick}
             description={kpi.description}
           />

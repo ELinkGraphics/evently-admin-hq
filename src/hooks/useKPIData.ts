@@ -100,7 +100,8 @@ export const useKPIData = (period: TimePeriod = 'month') => {
       }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: 3,
-    retryDelay: 1000
+    retry: 1,
+    retryDelay: 1000,
+    refetchOnWindowFocus: false
   });
 };
