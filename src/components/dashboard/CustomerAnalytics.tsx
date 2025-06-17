@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useQuery } from "@tanstack/react-query";
@@ -82,12 +81,12 @@ export const CustomerAnalytics = () => {
       ];
 
       // Calculate averages with proper type conversion
-      const totalSpentSum = customers.reduce((sum: number, c: any) => {
+      const totalSpentSum: number = customers.reduce((sum: number, c: any) => {
         const customerSpent = Number(c.totalSpent) || 0;
         return sum + customerSpent;
       }, 0);
       
-      const totalTicketsSum = customers.reduce((sum: number, c: any) => {
+      const totalTicketsSum: number = customers.reduce((sum: number, c: any) => {
         const customerTickets = Number(c.totalTickets) || 0;
         return sum + customerTickets;
       }, 0);
@@ -99,8 +98,8 @@ export const CustomerAnalytics = () => {
         segments,
         topCustomers,
         frequencyData,
-        averageSpending: customersCount > 0 ? totalSpentSum / customersCount : 0,
-        averageTicketsPerCustomer: customersCount > 0 ? totalTicketsSum / customersCount : 0
+        averageSpending: customersCount > 0 ? Number(totalSpentSum) / Number(customersCount) : 0,
+        averageTicketsPerCustomer: customersCount > 0 ? Number(totalTicketsSum) / Number(customersCount) : 0
       };
     },
   });
