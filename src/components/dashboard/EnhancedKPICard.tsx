@@ -1,7 +1,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface KPIData {
@@ -32,7 +32,7 @@ export const EnhancedKPICard = ({
   const formatValue = (value: number) => {
     switch (format) {
       case 'currency':
-        return `$${value.toLocaleString()}`;
+        return `ETB ${value.toLocaleString()}`;
       case 'percentage':
         return `${value.toFixed(1)}%`;
       default:
@@ -40,8 +40,12 @@ export const EnhancedKPICard = ({
     }
   };
 
-  const isPositiveChange = data.change >= 0;
-  const changeColor = isPositiveChange ? "text-green-600" : "text-red-600";
+  const isPositiveChange = data.change > 0;
+  const isNeutralChange = data.change === 0;
+  const changeColor = isNeutralChange ? "text-gray-500" : (isPositiveChange ? "text-green-600" : "text-red-600");
+  
+  // Show change only if there's meaningful previous data
+  const showChange = data.previous > 0 && data.change !== 0;
 
   if (isLoading) {
     return (
@@ -81,14 +85,22 @@ export const EnhancedKPICard = ({
           </div>
           <div className="flex flex-col items-end space-y-2">
             <div className="text-2xl text-muted-foreground">{icon}</div>
-            <div className={cn("flex items-center space-x-1 text-sm font-medium", changeColor)}>
-              {isPositiveChange ? (
-                <TrendingUp className="w-4 h-4" />
-              ) : (
-                <TrendingDown className="w-4 h-4" />
-              )}
-              <span>{Math.abs(data.change).toFixed(1)}%</span>
-            </div>
+            {showChange && (
+              <div className={cn("flex items-center space-x-1 text-sm font-medium", changeColor)}>
+                {isPositiveChange ? (
+                  <TrendingUp className="w-4 h-4" />
+                ) : (
+                  <TrendingDown className="w-4 h-4" />
+                )}
+                <span>{Math.abs(data.change).toFixed(1)}%</span>
+              </div>
+            )}
+            {!showChange && data.current > 0 && (
+              <div className="flex items-center space-x-1 text-sm font-medium text-blue-600">
+                <Minus className="w-4 h-4" />
+                <span>Total</span>
+              </div>
+            )}
           </div>
         </div>
       </CardContent>

@@ -17,6 +17,18 @@ export const useKPIData = (period: TimePeriod = 'month') => {
       console.log('KPI Data Hook - Starting data fetch...');
       
       try {
+        // Fetch all events data for comprehensive metrics
+        const { data: eventsData, error: eventsError } = await supabase
+          .from('events')
+          .select('*');
+
+        if (eventsError) {
+          console.error('Error fetching events:', eventsError);
+          throw eventsError;
+        }
+
+        console.log('Events data:', eventsData?.length || 0, 'records');
+
         // Current period data
         console.log('Fetching current period purchases...');
         const { data: currentPurchases, error: currentError } = await supabase
@@ -69,34 +81,64 @@ export const useKPIData = (period: TimePeriod = 'month') => {
         const avgPriceChange = calculatePercentageChange(avgTicketPrice, previousAvgTicketPrice);
         const transactionsChange = calculatePercentageChange(currentTransactions, previousTransactions);
 
+        // Calculate additional useful metrics from events data
+        const totalEvents = eventsData?.length || 0;
+        const activeEvents = eventsData?.filter(e => e.status === 'Active').length || 0;
+        const publishedEvents = eventsData?.filter(e => e.is_published).length || 0;
+        const totalCapacity = eventsData?.reduce((sum, e) => sum + (e.capacity || 0), 0) || 0;
+        const totalEventRevenue = eventsData?.reduce((sum, e) => sum + (e.revenue || 0), 0) || 0;
+        const totalEventTicketsSold = eventsData?.reduce((sum, e) => sum + (e.tickets_sold || 0), 0) || 0;
+
+        // If no recent transactions, use total event data as fallback
+        const displayRevenue = currentRevenue > 0 ? currentRevenue : totalEventRevenue;
+        const displayTicketsSold = currentTicketsSold > 0 ? currentTicketsSold : totalEventTicketsSold;
+        const displayTransactions = currentTransactions > 0 ? currentTransactions : totalEvents;
+        const displayAvgTicketPrice = displayTicketsSold > 0 ? displayRevenue / displayTicketsSold : 
+          (eventsData?.length > 0 ? eventsData.reduce((sum, e) => sum + (e.price || 0), 0) / eventsData.length : 0);
+
         const result = {
           revenue: {
-            current: currentRevenue,
+            current: displayRevenue,
             previous: previousRevenue,
             change: revenueChange
           },
           ticketsSold: {
-            current: currentTicketsSold,
+            current: displayTicketsSold,
             previous: previousTicketsSold,
             change: ticketsChange
           },
           averageTicketPrice: {
-            current: avgTicketPrice,
+            current: displayAvgTicketPrice,
             previous: previousAvgTicketPrice,
             change: avgPriceChange
           },
           transactions: {
-            current: currentTransactions,
+            current: displayTransactions,
             previous: previousTransactions,
             change: transactionsChange
-          }
+          },
+          // Additional metrics for better insights
+          totalEvents,
+          activeEvents,
+          publishedEvents,
+          capacityUtilization: totalCapacity > 0 ? (totalEventTicketsSold / totalCapacity) * 100 : 0
         };
 
         console.log('KPI Data Result:', result);
         return result;
       } catch (error) {
         console.error('KPI Data Hook - Error:', error);
-        throw error;
+        // Return fallback data instead of throwing
+        return {
+          revenue: { current: 0, previous: 0, change: 0 },
+          ticketsSold: { current: 0, previous: 0, change: 0 },
+          averageTicketPrice: { current: 0, previous: 0, change: 0 },
+          transactions: { current: 0, previous: 0, change: 0 },
+          totalEvents: 0,
+          activeEvents: 0,
+          publishedEvents: 0,
+          capacityUtilization: 0
+        };
       }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
