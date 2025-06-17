@@ -81,12 +81,12 @@ export const CustomerAnalytics = () => {
       ];
 
       // Calculate averages with proper type conversion
-      const totalSpentSum: number = customers.reduce((sum: number, c: any) => {
+      const totalSpentSum = customers.reduce((sum: number, c: any): number => {
         const customerSpent = Number(c.totalSpent) || 0;
         return sum + customerSpent;
       }, 0);
       
-      const totalTicketsSum: number = customers.reduce((sum: number, c: any) => {
+      const totalTicketsSum = customers.reduce((sum: number, c: any): number => {
         const customerTickets = Number(c.totalTickets) || 0;
         return sum + customerTickets;
       }, 0);
