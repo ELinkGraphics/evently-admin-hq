@@ -13,9 +13,14 @@ import { Badge } from "@/components/ui/badge";
 import { LogOut, User, Settings } from "lucide-react";
 
 export const UserMenu = () => {
-  const { profile, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
 
-  if (!profile) return null;
+  console.log('UserMenu render:', { user: user?.id, profile: profile?.role });
+
+  if (!user) {
+    console.log('No user in UserMenu');
+    return null;
+  }
 
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
@@ -28,15 +33,20 @@ export const UserMenu = () => {
     }
   };
 
+  const displayName = profile?.full_name || user.email || 'User';
+  const userRole = profile?.role || 'viewer';
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-full"></div>
+          <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
+            <User className="w-4 h-4 text-white" />
+          </div>
           <div className="hidden lg:block text-left">
-            <p className="text-sm font-medium">{profile.full_name || profile.email}</p>
-            <Badge variant={getRoleBadgeVariant(profile.role)} className="text-xs">
-              {profile.role}
+            <p className="text-sm font-medium">{displayName}</p>
+            <Badge variant={getRoleBadgeVariant(userRole)} className="text-xs">
+              {userRole}
             </Badge>
           </div>
         </Button>
@@ -45,8 +55,8 @@ export const UserMenu = () => {
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel>
           <div>
-            <p className="font-medium">{profile.full_name || 'User'}</p>
-            <p className="text-xs text-muted-foreground">{profile.email}</p>
+            <p className="font-medium">{displayName}</p>
+            <p className="text-xs text-muted-foreground">{user.email}</p>
           </div>
         </DropdownMenuLabel>
         

@@ -16,23 +16,39 @@ const AuthPage = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("signin");
 
+  console.log('AuthPage render - user:', user, 'loading:', loading);
+
   // Redirect if already authenticated
   if (user && !loading) {
+    console.log('User authenticated, redirecting to home');
     return <Navigate to="/" replace />;
   }
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Handling sign in for:', email);
+    
     setError(null);
+    setSuccess(null);
     setIsLoading(true);
 
-    const { error } = await signIn(email, password);
-    
-    if (error) {
-      setError(error.message);
+    try {
+      const { error } = await signIn(email, password);
+      
+      if (error) {
+        console.error('Sign in error:', error);
+        setError(error.message || "Failed to sign in. Please try again.");
+      } else {
+        console.log('Sign in successful');
+        setSuccess("Successfully signed in!");
+      }
+    } catch (err) {
+      console.error('Unexpected sign in error:', err);
+      setError("An unexpected error occurred. Please try again.");
     }
     
     setIsLoading(false);
@@ -40,21 +56,40 @@ const AuthPage = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Handling sign up for:', email);
+    
     setError(null);
+    setSuccess(null);
     setIsLoading(true);
 
-    const { error } = await signUp(email, password, fullName);
-    
-    if (error) {
-      setError(error.message);
-    } else {
-      setError("Check your email for the confirmation link!");
+    try {
+      const { error } = await signUp(email, password, fullName);
+      
+      if (error) {
+        console.error('Sign up error:', error);
+        if (error.message?.includes("check your email")) {
+          setSuccess(error.message);
+        } else {
+          setError(error.message || "Failed to create account. Please try again.");
+        }
+      } else {
+        console.log('Sign up successful');
+        setSuccess("Account created successfully! You can now sign in.");
+        setActiveTab("signin");
+        setEmail("");
+        setPassword("");
+        setFullName("");
+      }
+    } catch (err) {
+      console.error('Unexpected sign up error:', err);
+      setError("An unexpected error occurred. Please try again.");
     }
     
     setIsLoading(false);
   };
 
   if (loading) {
+    console.log('Auth page loading');
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
@@ -75,7 +110,7 @@ const AuthPage = () => {
             EventPro Admin
           </CardTitle>
           <CardDescription>
-            Sign in to access your event management dashboard
+            {activeTab === "signin" ? "Sign in to access your dashboard" : "Create your admin account"}
           </CardDescription>
         </CardHeader>
         
@@ -97,6 +132,7 @@ const AuthPage = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                    disabled={isLoading}
                   />
                 </div>
                 
@@ -105,9 +141,11 @@ const AuthPage = () => {
                   <Input
                     id="signin-password"
                     type="password"
+                    placeholder="Your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    disabled={isLoading}
                   />
                 </div>
                 
@@ -127,13 +165,14 @@ const AuthPage = () => {
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="signup-name">Full Name</Label>
+                  <Label htmlFor="signup-name">Full Name (Optional)</Label>
                   <Input
                     id="signup-name"
                     type="text"
                     placeholder="John Doe"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
+                    disabled={isLoading}
                   />
                 </div>
                 
@@ -146,6 +185,7 @@ const AuthPage = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                    disabled={isLoading}
                   />
                 </div>
                 
@@ -154,9 +194,12 @@ const AuthPage = () => {
                   <Input
                     id="signup-password"
                     type="password"
+                    placeholder="Create a strong password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    disabled={isLoading}
+                    minLength={6}
                   />
                 </div>
                 
@@ -175,9 +218,16 @@ const AuthPage = () => {
           </Tabs>
           
           {error && (
-            <Alert className="mt-4" variant={error.includes("Check your email") ? "default" : "destructive"}>
+            <Alert className="mt-4" variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          
+          {success && (
+            <Alert className="mt-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{success}</AlertDescription>
             </Alert>
           )}
         </CardContent>
