@@ -414,6 +414,39 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          is_active: boolean | null
+          last_login: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id: string
+          is_active?: boolean | null
+          last_login?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_login?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ticket_purchases: {
         Row: {
           amount_paid: number
@@ -531,6 +564,13 @@ export type Database = {
       }
     }
     Functions: {
+      has_role: {
+        Args: {
+          _user_id: string
+          _role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: boolean
+      }
       refresh_dashboard_kpis: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -538,6 +578,7 @@ export type Database = {
     }
     Enums: {
       admin_role_enum: "super_admin" | "admin" | "moderator" | "viewer"
+      app_role: "admin" | "moderator" | "viewer"
       event_status_enum: "Draft" | "Active" | "Cancelled" | "Completed"
       payment_method_enum: "chapa" | "bank_transfer" | "cash" | "mobile_money"
       payment_status_enum:
@@ -662,6 +703,7 @@ export const Constants = {
   public: {
     Enums: {
       admin_role_enum: ["super_admin", "admin", "moderator", "viewer"],
+      app_role: ["admin", "moderator", "viewer"],
       event_status_enum: ["Draft", "Active", "Cancelled", "Completed"],
       payment_method_enum: ["chapa", "bank_transfer", "cash", "mobile_money"],
       payment_status_enum: [
