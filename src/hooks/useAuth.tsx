@@ -42,16 +42,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) {
         console.error('Error fetching profile:', error);
-        // If profile doesn't exist, create a default one
-        const defaultProfile: Profile = {
-          id: userId,
-          email: user?.email || '',
-          full_name: user?.user_metadata?.full_name || null,
-          role: 'viewer',
-          is_active: true,
-          last_login: new Date().toISOString()
-        };
-        setProfile(defaultProfile);
         return;
       }
 
@@ -59,18 +49,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setProfile(data);
     } catch (error) {
       console.error('Error in fetchProfile:', error);
-      // Set a default profile on error
-      if (user) {
-        const defaultProfile: Profile = {
-          id: user.id,
-          email: user.email || '',
-          full_name: user.user_metadata?.full_name || null,
-          role: 'viewer',
-          is_active: true,
-          last_login: new Date().toISOString()
-        };
-        setProfile(defaultProfile);
-      }
     }
   };
 
@@ -150,7 +128,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error };
       }
 
-      // If signup successful, show success message
+      // If signup successful but no session (email confirmation required)
       if (data?.user && !data?.session) {
         return { 
           error: { 

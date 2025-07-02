@@ -30,11 +30,9 @@ export const ProtectedRoute = ({ children, requiredRole = 'viewer' }: ProtectedR
     return <Navigate to="/auth" replace />;
   }
 
-  // Allow access even without profile for now, as we're having profile creation issues
   if (!profile) {
-    console.log('No profile found, but allowing access');
-    // Return children for now to avoid blocking access
-    return <>{children}</>;
+    console.log('No profile found, redirecting to auth');
+    return <Navigate to="/auth" replace />;
   }
 
   if (!profile.is_active) {
