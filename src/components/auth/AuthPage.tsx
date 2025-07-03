@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, AlertCircle, Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AdminSetup } from "./AdminSetup";
 
 const AuthPage = () => {
   const { user, signIn, signUp, loading } = useAuth();
@@ -19,6 +20,7 @@ const AuthPage = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("signin");
+  const [showAdminSetup, setShowAdminSetup] = useState(false);
 
   console.log('AuthPage render - user:', user, 'loading:', loading);
 
@@ -115,11 +117,24 @@ const AuthPage = () => {
         </CardHeader>
         
         <CardContent>
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
-            </TabsList>
+          {showAdminSetup ? (
+            <div className="space-y-4">
+              <Button 
+                variant="ghost" 
+                onClick={() => setShowAdminSetup(false)}
+                className="w-full"
+              >
+                ← Back to Sign In
+              </Button>
+              <AdminSetup />
+            </div>
+          ) : (
+            <>
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="signin">Sign In</TabsTrigger>
+                  <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                </TabsList>
             
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4">
@@ -216,6 +231,17 @@ const AuthPage = () => {
               </form>
             </TabsContent>
           </Tabs>
+
+          <div className="mt-4 text-center">
+            <Button 
+              variant="link" 
+              size="sm"
+              onClick={() => setShowAdminSetup(true)}
+              className="text-xs text-muted-foreground"
+            >
+              Need to create Super Admin?
+            </Button>
+          </div>
           
           {error && (
             <Alert className="mt-4" variant="destructive">
@@ -229,6 +255,8 @@ const AuthPage = () => {
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{success}</AlertDescription>
             </Alert>
+          )}
+          </>
           )}
         </CardContent>
       </Card>
