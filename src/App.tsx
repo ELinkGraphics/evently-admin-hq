@@ -31,32 +31,12 @@ const App = () => (
             <Route path="/event/:eventId" element={<PublicEvent />} />
             <Route path="/ticket-confirmation" element={<TicketConfirmation />} />
             
-            {/* Protected admin routes */}
-            <Route path="/" element={
-              <ProtectedRoute requiredRole="viewer">
-                <Index />
-              </ProtectedRoute>
-            } />
-            <Route path="/events" element={
-              <ProtectedRoute requiredRole="moderator">
-                <Events />
-              </ProtectedRoute>
-            } />
-            <Route path="/attendees" element={
-              <ProtectedRoute requiredRole="viewer">
-                <Attendees />
-              </ProtectedRoute>
-            } />
-            <Route path="/finance" element={
-              <ProtectedRoute requiredRole="moderator">
-                <Finance />
-              </ProtectedRoute>
-            } />
-            <Route path="/payments" element={
-              <ProtectedRoute requiredRole="moderator">
-                <Payments />
-              </ProtectedRoute>
-            } />
+            {/* Direct access routes - no authentication required */}
+            <Route path="/" element={<Index />} />
+            <Route path="/events" element={<Events />} />
+            <Route path="/attendees" element={<Attendees />} />
+            <Route path="/finance" element={<Finance />} />
+            <Route path="/payments" element={<Payments />} />
             
             <Route path="*" element={<NotFound />} />
           </Routes>

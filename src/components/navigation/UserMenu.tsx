@@ -13,14 +13,11 @@ import { Badge } from "@/components/ui/badge";
 import { LogOut, User, Settings } from "lucide-react";
 
 export const UserMenu = () => {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile } = useAuth();
 
-  console.log('UserMenu render:', { user: user?.id, profile: profile?.role });
-
-  if (!user) {
-    console.log('No user in UserMenu');
-    return null;
-  }
+  // Show a default user when no authentication
+  const displayName = profile?.full_name || user?.email || 'Guest User';
+  const userRole = profile?.role || 'admin';
 
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
@@ -32,9 +29,6 @@ export const UserMenu = () => {
         return 'secondary';
     }
   };
-
-  const displayName = profile?.full_name || user.email || 'User';
-  const userRole = profile?.role || 'viewer';
 
   return (
     <DropdownMenu>
@@ -56,7 +50,7 @@ export const UserMenu = () => {
         <DropdownMenuLabel>
           <div>
             <p className="font-medium">{displayName}</p>
-            <p className="text-xs text-muted-foreground">{user.email}</p>
+            <p className="text-xs text-muted-foreground">{user?.email || 'No authentication required'}</p>
           </div>
         </DropdownMenuLabel>
         
@@ -70,13 +64,6 @@ export const UserMenu = () => {
         <DropdownMenuItem>
           <Settings className="w-4 h-4 mr-2" />
           Settings
-        </DropdownMenuItem>
-        
-        <DropdownMenuSeparator />
-        
-        <DropdownMenuItem onClick={signOut}>
-          <LogOut className="w-4 h-4 mr-2" />
-          Sign Out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
