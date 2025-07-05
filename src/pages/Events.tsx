@@ -1,37 +1,41 @@
 
-import { useState } from "react";
-import { Sidebar } from "@/components/navigation/Sidebar";
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/layout/AppSidebar";
+import { AppHeader } from "@/components/layout/AppHeader";
 import { EventsList } from "@/components/events/EventsList";
 import { EventFilters } from "@/components/events/EventFilters";
 import { EventFormDialog } from "@/components/events/EventFormDialog";
 import { useEvents } from "@/hooks/useEvents";
 
 const Events = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const { createEvent, isCreating } = useEvents();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex w-full">
-      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
-      
-      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
-        <DashboardHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        
-        <main className="p-6 space-y-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Events</h1>
-              <p className="text-muted-foreground mt-1">Manage all your events in one place.</p>
-            </div>
-            <EventFormDialog onSubmit={createEvent} isLoading={isCreating} />
-          </div>
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-background">
+        <AppSidebar />
+        <SidebarInset className="flex flex-col">
+          <AppHeader />
+          
+          <main className="flex-1 overflow-auto">
+            <div className="container mx-auto p-6 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <h1 className="text-3xl font-bold tracking-tight">Events</h1>
+                  <p className="text-muted-foreground">
+                    Manage all your events in one place.
+                  </p>
+                </div>
+                <EventFormDialog onSubmit={createEvent} isLoading={isCreating} />
+              </div>
 
-          <EventFilters />
-          <EventsList />
-        </main>
+              <EventFilters />
+              <EventsList />
+            </div>
+          </main>
+        </SidebarInset>
       </div>
-    </div>
+    </SidebarProvider>
   );
 };
 
