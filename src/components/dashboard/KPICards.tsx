@@ -9,10 +9,10 @@ import { useToast } from "@/hooks/use-toast";
 
 export const KPICards = () => {
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('week');
-  const { data: kpiData, isLoading, error, isSuccess } = useKPIData(selectedPeriod);
+  const { data: kpiData, isLoading, error } = useKPIData(selectedPeriod);
   const { toast } = useToast();
 
-  console.log('KPICards - Loading:', isLoading, 'Error:', error, 'Data:', kpiData, 'Success:', isSuccess);
+  console.log('KPICards - Loading:', isLoading, 'Error:', error, 'Data:', kpiData);
 
   const handleCardClick = (cardType: string) => {
     toast({
@@ -21,13 +21,9 @@ export const KPICards = () => {
     });
   };
 
+  // Show error toast only once when error occurs
   if (error) {
     console.error('Error loading KPI data:', error);
-    toast({
-      title: "Error",
-      description: "Failed to load KPI data. Please try again.",
-      variant: "destructive",
-    });
   }
 
   // Primary KPI cards with fallback data
@@ -123,7 +119,7 @@ export const KPICards = () => {
             data={kpi.data}
             icon={kpi.icon}
             format={kpi.format}
-            isLoading={isLoading && !isSuccess}
+            isLoading={isLoading}
             onClick={kpi.onClick}
             description={kpi.description}
           />
@@ -148,7 +144,7 @@ export const KPICards = () => {
                 data={kpi.data}
                 icon={kpi.icon}
                 format={kpi.format}
-                isLoading={isLoading && !isSuccess}
+                isLoading={isLoading}
                 onClick={kpi.onClick}
                 description={kpi.description}
               />
