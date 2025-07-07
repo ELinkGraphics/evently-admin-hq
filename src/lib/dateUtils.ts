@@ -39,10 +39,16 @@ export const calculatePercentageChange = (current: number, previous: number): nu
 };
 
 export const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
+  return `ETB ${amount.toLocaleString('en-US', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount);
+  })}`;
+};
+
+export const formatNumber = (num: number): string => {
+  return num.toLocaleString('en-US');
+};
+
+export const formatPercentage = (value: number): string => {
+  return `${value.toFixed(1)}%`;
 };

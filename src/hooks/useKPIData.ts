@@ -128,17 +128,7 @@ export const useKPIData = (period: TimePeriod = 'month') => {
         return result;
       } catch (error) {
         console.error('KPI Data Hook - Error:', error);
-        // Return fallback data instead of throwing
-        return {
-          revenue: { current: 0, previous: 0, change: 0 },
-          ticketsSold: { current: 0, previous: 0, change: 0 },
-          averageTicketPrice: { current: 0, previous: 0, change: 0 },
-          transactions: { current: 0, previous: 0, change: 0 },
-          totalEvents: 0,
-          activeEvents: 0,
-          publishedEvents: 0,
-          capacityUtilization: 0
-        };
+        throw error;
       }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes

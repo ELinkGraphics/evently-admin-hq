@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatCurrency, formatNumber, formatPercentage } from "@/lib/dateUtils";
 
 interface KPIData {
   current: number;
@@ -32,11 +33,11 @@ export const EnhancedKPICard = ({
   const formatValue = (value: number) => {
     switch (format) {
       case 'currency':
-        return `ETB ${value.toLocaleString()}`;
+        return formatCurrency(value);
       case 'percentage':
-        return `${value.toFixed(1)}%`;
+        return formatPercentage(value);
       default:
-        return value.toLocaleString();
+        return formatNumber(value);
     }
   };
 

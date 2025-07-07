@@ -21,9 +21,14 @@ export const KPICards = () => {
     });
   };
 
-  // Show error toast only once when error occurs
+  // Handle error state
   if (error) {
     console.error('Error loading KPI data:', error);
+    toast({
+      title: "Error",
+      description: "Failed to load KPI data. Please refresh the page.",
+      variant: "destructive",
+    });
   }
 
   // Primary KPI cards with fallback data
@@ -154,8 +159,13 @@ export const KPICards = () => {
       )}
       
       {error && (
-        <div className="text-center text-red-500 text-sm mt-4">
-          Unable to load KPI data. Please check the console for more details.
+        <div className="text-center py-8">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 mx-auto max-w-md">
+            <h3 className="text-lg font-semibold text-red-900 mb-2">Data Loading Error</h3>
+            <p className="text-red-700 text-sm">
+              Unable to load KPI data. Please refresh the page or try again later.
+            </p>
+          </div>
         </div>
       )}
 

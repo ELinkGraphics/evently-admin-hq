@@ -124,7 +124,10 @@ export const RevenueAnalytics = () => {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
               <YAxis />
-              <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Revenue']} />
+              <Tooltip 
+                formatter={(value) => [formatCurrency(Number(value)), 'Revenue']}
+                labelFormatter={(label) => `Date: ${label}`}
+              />
               <Line type="monotone" dataKey="revenue" stroke="#8884d8" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
