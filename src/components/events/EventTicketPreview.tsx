@@ -3,10 +3,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, MapPin, Clock, Users, DollarSign } from "lucide-react";
 import { Event } from "@/types/event";
+import QRCode from "qrcode.react";
 
 interface EventTicketPreviewProps {
   event: Event;
   buyerName?: string;
+  ticketId?: string;
 }
 
 const formatDate = (date: string) => {
@@ -33,7 +35,7 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
-export const EventTicketPreview = ({ event, buyerName = "John Doe" }: EventTicketPreviewProps) => {
+export const EventTicketPreview = ({ event, buyerName = "John Doe", ticketId }: EventTicketPreviewProps) => {
   return (
     <Card className="max-w-md mx-auto bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-dashed border-primary">
       <CardContent className="p-6">
@@ -94,9 +96,26 @@ export const EventTicketPreview = ({ event, buyerName = "John Doe" }: EventTicke
           <div className="border-t border-dashed border-border pt-4">
             <div className="text-center">
               <p className="text-xs text-muted-foreground mb-1">TICKET ID</p>
-              <p className="font-mono text-xs text-foreground">{event.id.slice(0, 8).toUpperCase()}</p>
+              <p className="font-mono text-xs text-foreground">{ticketId || event.id.slice(0, 8).toUpperCase()}</p>
             </div>
           </div>
+          
+          {/* QR Code */}
+          {ticketId && (
+            <div className="border-t border-dashed border-border pt-4">
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground mb-2">SCAN TO CHECK IN</p>
+                <div className="flex justify-center">
+                  <QRCode 
+                    value={ticketId} 
+                    size={80}
+                    level="M"
+                    includeMargin={true}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}

@@ -63,7 +63,7 @@ export const EventDetailsDialog = ({ event }: EventDetailsDialogProps) => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div>
                 <h3 className="text-lg font-semibold mb-4">Ticket Preview</h3>
-                <EventTicketPreview event={event} />
+                <EventTicketPreview event={event} ticketId="sample-ticket-id" />
               </div>
               
               <div>

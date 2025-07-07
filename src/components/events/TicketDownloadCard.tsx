@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { Button } from "@/components/ui/button";
+import QRCode from "qrcode.react";
 
 interface TicketDownloadCardProps {
   purchase: TicketPurchase;
@@ -77,9 +78,24 @@ export const TicketDownloadCard = ({ purchase, event }: TicketDownloadCardProps)
             <span>Transaction Ref:</span>
             <span className="font-mono text-xs">{purchase.chapa_tx_ref || purchase.id || "N/A"}</span>
           </div>
-          <div className="flex justify-between mb-2">
+          <div className="flex justify-between mb-4">
             <span>Seat Number:</span>
             <span>-</span>
+          </div>
+          
+          {/* QR Code */}
+          <div className="border-t border-dashed border-border pt-4">
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground mb-2">TICKET QR CODE</p>
+              <div className="flex justify-center">
+                <QRCode 
+                  value={purchase.id} 
+                  size={80}
+                  level="M"
+                  includeMargin={true}
+                />
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

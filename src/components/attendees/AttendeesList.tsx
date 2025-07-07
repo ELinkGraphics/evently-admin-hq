@@ -3,11 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Mail, User, Activity, Download, CheckCircle2, XCircle } from 'lucide-react';
+import { Mail, User, Activity, Download, CheckCircle2, XCircle, ScanLine } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
+import { QRScanner } from '@/components/admin/QRScanner';
 
 interface AttendeesListProps {
   searchTerm: string;
@@ -37,6 +38,7 @@ interface AttendeeRecord {
 export const AttendeesList = ({ searchTerm, statusFilter, eventFilter }: AttendeesListProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
 
   // Fetch all attendees with event details
   const { data: attendees = [], isLoading } = useQuery({
@@ -158,6 +160,12 @@ export const AttendeesList = ({ searchTerm, statusFilter, eventFilter }: Attende
     };
   }, [queryClient]);
 
+  const handleQRScanSuccess = (ticketId: string) => {
+    // Refresh the attendees list after successful scan
+    queryClient.invalidateQueries({ queryKey: ['attendees'] });
+    queryClient.invalidateQueries({ queryKey: ['attendee_stats'] });
+  };
+
   // Export attendees
   const exportAttendees = () => {
     if (attendees.length === 0) return;
@@ -215,10 +223,20 @@ export const AttendeesList = ({ searchTerm, statusFilter, eventFilter }: Attende
           <CardTitle className="text-xl font-bold text-foreground">
             Attendees ({attendees.length})
           </CardTitle>
-          <Button onClick={exportAttendees} variant="outline" size="sm">
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
+          <div className="flex space-x-2">
+            <Button 
+              onClick={() => setIsQRScannerOpen(true)} 
+              variant="default" 
+              size="sm"
+            >
+              <ScanLine className="w-4 h-4 mr-2" />
+              Scan QR
+            </Button>
+            <Button onClick={exportAttendees} variant="outline" size="sm">
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -288,6 +306,12 @@ export const AttendeesList = ({ searchTerm, statusFilter, eventFilter }: Attende
           ))
         )}
       </CardContent>
+      
+      <QRScanner
+        isOpen={isQRScannerOpen}
+        onClose={() => setIsQRScannerOpen(false)}
+        onScanSuccess={handleQRScanSuccess}
+      />
     </Card>
   );
 };
